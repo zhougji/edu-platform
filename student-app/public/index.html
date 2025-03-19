@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>EduResource 学生端</title>
+    <!-- Element Plus 样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css">
+    <!-- Font Awesome 图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.2.0/css/all.min.css">
+    <!-- Animate.css 动画 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+    <style>
+        body {
+            margin: 0;
+            background-color: #f0f2f5;
+            font-family: "Helvetica Neue", Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+    // 注册 Service Worker，实现离线缓存（仅在生产环境中启用）
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/service-worker.js')
+            .then(reg => console.log('Service Worker 注册成功:', reg))
+            .catch(err => console.error('Service Worker 注册失败:', err));
+    }
+</script>
+</body>
+</html>
