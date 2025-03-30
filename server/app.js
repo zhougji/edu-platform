@@ -2,171 +2,162 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bodyParser = require('body-parser');
-const jwt = require('jsonwebtoken');
+const path = require('path');
 const http = require('http');
 const socketIo = require('socket.io');
+const morgan = require('morgan');
 const dotenv = require('dotenv');
 
 // 加载环境变量
 dotenv.config();
 
-// 引入中间件
-const logger = require('./middleware/logger');
+// 导入中间件
+const errorHandler = require('./middleware/errorHandler');
+const { rateLimiter } = require('./middleware/auth');
 
+// 初始化Express应用
 const app = express();
 const server = http.createServer(app);
+
+// 设置CORS
+app.use(cors({
+    origin: process.env.CLIENT_URL || 'http://localhost:8080',
+    credentials: true
+}));
+
+// 请求日志
+app.use(morgan('dev'));
+
+// 请求限流
+app.use(rateLimiter);
+
+// 请求体解析
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// 静态文件服务
+const uploadDir = process.env.UPLOAD_DIR || 'uploads';
+app.use(`/${uploadDir}`, express.static(path.join(__dirname, uploadDir)));
+
+// 连接MongoDB
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/edu-platform', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
+})
+    .then(() => console.log('MongoDB 连接成功'))
+    .catch(err => {
+        console.error('MongoDB 连接失败:', err);
+        process.exit(1);
+    });
+
+// 路由
+app.use('/api/auth', require('./routes/auth'));
+app.use('/api/resources', require('./routes/resources'));
+app.use('/api/consultations', require('./routes/consultations'));
+app.use('/api/ai-learning', require('./routes/ai-learning'));
+
+// API根路径信息
+app.get('/api', (req, res) => {
+    res.json({
+        success: true,
+        message: '教育平台API服务',
+        version: '1.0.0',
+        endpoints: [
+            '/api/auth',
+            '/api/resources',
+            '/api/consultations',
+            '/api/ai-learning'
+        ]
+    });
+});
+
+// 健康检查端点
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        uptime: process.uptime(),
+        timestamp: Date.now(),
+        environment: process.env.NODE_ENV,
+        database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+    });
+});
+
+// 404处理
+app.use((req, res, next) => {
+    res.status(404).json({
+        success: false,
+        message: '请求的资源不存在'
+    });
+});
+
+// 全局错误处理
+app.use(errorHandler);
+
+// WebSocket实时通信设置
 const io = socketIo(server, {
     cors: {
-        origin: ['http://localhost:8080', 'http://localhost:8081'],
+        origin: process.env.CLIENT_URL || 'http://localhost:8080',
         methods: ['GET', 'POST'],
         credentials: true
     }
 });
 
-// 中间件
-app.use(cors({
-    origin: ['http://localhost:8080', 'http://localhost:8081'],
-    credentials: true
-}));
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-app.use('/uploads', express.static('uploads'));
+// 在线咨询的WebSocket处理
+const consultationNamespace = io.of('/consultations');
 
-// 日志中间件 - 记录所有请求
-app.use(logger);
+consultationNamespace.on('connection', (socket) => {
+    console.log('用户连接到咨询服务:', socket.id);
 
-// 数据库连接
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/edu-platform', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-})
-    .then(() => {
-        console.log('MongoDB 连接成功');
-    })
-    .catch(err => {
-        console.error('MongoDB 连接失败:', err);
-    });
-
-// JWT 密钥
-const JWT_SECRET = 'education-resource-distribution-platform-secret';
-
-// JWT 认证中间件
-const authenticateJWT = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (authHeader) {
-        const token = authHeader.split(' ')[1];
-        jwt.verify(token, JWT_SECRET, (err, user) => {
-            if (err) {
-                return res.status(403).json({ message: '认证失败，请重新登录' });
-            }
-            req.user = user;
-            next();
-        });
-    } else {
-        res.status(401).json({ message: '未授权，请登录' });
-    }
-};
-
-// 路由
-const authRoutes = require('./routes/auth');
-const studentRoutes = require('./routes/students');
-const teacherRoutes = require('./routes/teachers');
-const resourceRoutes = require('./routes/resources');
-const consultationRoutes = require('./routes/consultations');
-const aiLearningRoutes = require('./routes/ai-learning');
-const adminStatsRoutes = require('./routes/admin-stats');
-const learningTimeRoutes = require('./routes/learning-time');
-
-app.use('/api/auth', authRoutes);
-app.use('/api/students', studentRoutes);
-app.use('/api/teachers', teacherRoutes);
-app.use('/api/resources', resourceRoutes);
-app.use('/api/consultations', consultationRoutes);
-app.use('/api/ai-learning', aiLearningRoutes);
-app.use('/api/admin/stats', adminStatsRoutes);
-app.use('/api/learning-time', learningTimeRoutes);
-
-// AI 辅助学习 API
-app.get('/api/ai-learning', (req, res) => {
-    const aiSuggestions = [
-        "我注意到你最近在数学方面有些困难，建议观看'函数基础'视频并完成相关练习。",
-        "根据你的学习记录，你在英语词汇方面进步很快，建议尝试更高级的阅读材料。",
-        "你在物理实验方面表现出了很强的天赋，推荐参加下周的实验班。",
-        "最近几次测验显示你对几何问题有些困难，建议寻求老师额外辅导。",
-        "你的学习数据显示你是视觉学习者，建议使用更多图表和视频资源来学习新概念。",
-        "根据你的学习习惯分析，建议你在早上进行复习，效果会更好。",
-        "你在小组讨论中表现活跃，推荐参与更多合作学习活动以提高学习效果。"
-    ];
-
-    // 随机选择一条建议
-    const randomSuggestion = aiSuggestions[Math.floor(Math.random() * aiSuggestions.length)];
-
-    res.json({ message: randomSuggestion });
-});
-
-// WebSocket 处理咨询消息实时通信
-io.on('connection', (socket) => {
-    console.log('用户已连接：', socket.id);
-
-    // 学生或老师加入咨询聊天室
+    // 加入特定咨询房间
     socket.on('join-consultation', (consultationId) => {
         socket.join(`consultation-${consultationId}`);
         console.log(`用户 ${socket.id} 加入咨询 ${consultationId}`);
     });
 
-    // 处理新消息
-    socket.on('new-message', (data) => {
-        io.to(`consultation-${data.consultationId}`).emit('message', data);
-        console.log(`咨询 ${data.consultationId} 中的新消息：`, data.content);
+    // 发送消息
+    socket.on('send-message', (data) => {
+        const { consultationId, message } = data;
+        console.log(`向咨询 ${consultationId} 发送消息`);
+
+        // 广播给房间内所有人
+        consultationNamespace.to(`consultation-${consultationId}`).emit('new-message', message);
     });
 
-    // 通知老师新的咨询请求
-    socket.on('new-consultation-request', (data) => {
-        io.emit('consultation-request', data);
-        console.log('新咨询请求：', data);
+    // 视频通话信令
+    socket.on('video-signal', (data) => {
+        const { consultationId, signal, to } = data;
+        console.log(`咨询 ${consultationId} 中的视频信号`);
+
+        // 将信号转发给特定用户
+        socket.to(`consultation-${consultationId}`).emit('video-signal', {
+            from: socket.id,
+            signal
+        });
     });
 
-    // 学生收到老师接受咨询的通知
-    socket.on('consultation-accepted', (data) => {
-        io.emit('student-consultation-accepted', data);
-        console.log('咨询已接受：', data);
+    // 状态更新
+    socket.on('status-update', (data) => {
+        const { consultationId, status } = data;
+        console.log(`咨询 ${consultationId} 状态更新为 ${status}`);
+
+        consultationNamespace.to(`consultation-${consultationId}`).emit('status-changed', status);
     });
 
+    // 断开连接
     socket.on('disconnect', () => {
-        console.log('用户已断开连接：', socket.id);
+        console.log('用户断开连接:', socket.id);
     });
-});
-
-// 404 处理
-app.use((req, res) => {
-    res.status(404).json({ message: '未找到请求的资源' });
-});
-
-// 错误处理
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ message: '服务器错误' });
 });
 
 // 启动服务器
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
     console.log(`服务器运行在端口 ${PORT}`);
+    console.log(`访问: http://localhost:${PORT}/api`);
 });
 
-// 设置每日统计数据重置任务
-const resetDailyStats = () => {
-    global.systemPerfStats = {
-        apiCalls: 0,
-        totalResponseTime: 0,
-        avgResponseTime: 0,
-        errors: 0
-    };
-};
+process.on('unhandledRejection', (err) => {
+    console.error('未处理的Promise拒绝:', err);
+});
 
-// 每天午夜重置统计数据
-setInterval(resetDailyStats, 24 * 60 * 60 * 1000);
-// 初始化统计数据
-resetDailyStats();
-
-module.exports = app;
+module.exports = { app, server };

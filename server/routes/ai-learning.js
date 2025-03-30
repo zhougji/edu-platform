@@ -1,244 +1,320 @@
 const express = require('express');
 const router = express.Router();
-const fetch = require('node-fetch');
-const auth = require('../middleware/auth');
-const Student = require('../models/Student');
-const Resource = require('../models/Resource');
-
-// Constants for the ds-r1 model API
-const DS_R1_API_URL = process.env.DS_R1_API_URL || 'https://api.deepseek.com/v1/chat/completions';
-const DS_R1_API_KEY = process.env.DS_R1_API_KEY;
+const { check, validationResult } = require('express-validator');
+const AIQuestion = require('../models/AIQuestion');
+const { protect, verifiedOnly } = require('../middleware/auth');
+const {
+    answerStudentQuestion,
+    generateLearningRecommendations
+} = require('../utils/deepseekAI');
 
 /**
- * @route   POST /api/ai-learning
- * @desc    Get AI learning suggestions based on student's input
+ * @route   POST /api/ai-learning/ask
+ * @desc    向AI提问并获取回答
  * @access  Private
  */
-router.post('/', auth, async (req, res) => {
-    try {
-        const { query, context } = req.body;
-
-        if (!query) {
-            return res.status(400).json({ message: '请提供学习问题' });
-        }
-
-        if (!DS_R1_API_KEY) {
-            return res.status(500).json({ message: 'DS_R1_API_KEY environment variable not set' });
-        }
-
-        // Prepare the prompt for the ds-r1 model
-        const prompt = `作为一位教育助手，请根据以下学生的问题提供教学建议、学习指导或知识解答。
-    学生背景信息：${context || '无特定背景信息'}
-    学生问题：${query}
-    请提供详细、有教育意义且容易理解的回答，适当包含一些学习建议和延伸阅读方向。`;
-
-        // Call the ds-r1 model API
-        const response = await fetch(DS_R1_API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${DS_R1_API_KEY}`
-            },
-            body: JSON.stringify({
-                model: 'deepseek-chat',
-                messages: [
-                    { role: 'user', content: prompt }
-                ],
-                temperature: 0.7,
-                max_tokens: 1000
-            })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error('DS-R1 API error:', data);
-            return res.status(response.status).json({
-                message: '模型服务调用失败',
-                error: data.error || '未知错误'
+router.post(
+    '/ask',
+    [
+        protect,
+        verifiedOnly,
+        [
+            check('question', '问题是必需的').not().isEmpty(),
+            check('subject', '学科是必需的').not().isEmpty(),
+            check('grade', '年级是必需的').not().isEmpty()
+        ]
+    ],
+    async (req, res) => {
+        // 验证输入
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                errors: errors.array()
             });
         }
 
-        // Extract the AI response
-        const aiResponse = data.choices[0].message.content;
+        try {
+            const { question, subject, grade } = req.body;
 
-        return res.json({ suggestion: aiResponse });
+            // 调用DeepSeek AI获取回答
+            const startTime = Date.now();
+            const aiResponse = await answerStudentQuestion(question, subject, grade);
+            const processingTime = Date.now() - startTime;
+
+            // 创建问答记录
+            const aiQuestion = new AIQuestion({
+                user: req.user._id,
+                question,
+                answer: aiResponse.content,
+                subject,
+                model: aiResponse.model || 'deepseek-r1',
+                promptTokens: aiResponse.promptTokens || 0,
+                completionTokens: aiResponse.completionTokens || 0,
+                totalTokens: aiResponse.totalTokens || 0,
+                processingTime
+            });
+
+            // 保存记录
+            await aiQuestion.save();
+
+            res.json({
+                success: true,
+                id: aiQuestion._id,
+                question: aiQuestion.question,
+                answer: aiQuestion.answer,
+                metadata: {
+                    model: aiQuestion.model,
+                    promptTokens: aiQuestion.promptTokens,
+                    completionTokens: aiQuestion.completionTokens,
+                    totalTokens: aiQuestion.totalTokens,
+                    processingTime: aiQuestion.processingTime
+                }
+            });
+        } catch (error) {
+            console.error('AI回答错误:', error);
+            res.status(500).json({
+                success: false,
+                message: 'AI服务暂时不可用，请稍后再试',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
+    }
+);
+
+/**
+ * @route   GET /api/ai-learning/recommendations/:id
+ * @desc    获取AI学习建议
+ * @access  Private
+ */
+router.get('/recommendations/:id', [protect, verifiedOnly], async (req, res) => {
+    try {
+        // 查找问题记录
+        const aiQuestion = await AIQuestion.findById(req.params.id);
+
+        if (!aiQuestion) {
+            return res.status(404).json({
+                success: false,
+                message: '找不到该问题记录'
+            });
+        }
+
+        // 权限检查 - 只有提问者或教师可以查看
+        if (
+            aiQuestion.user.toString() !== req.user._id.toString() &&
+            req.user.role !== 'teacher' &&
+            req.user.role !== 'admin'
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: '您没有权限查看此内容'
+            });
+        }
+
+        // 获取学习建议
+        const recommendations = await generateLearningRecommendations(
+            aiQuestion.question,
+            aiQuestion.answer
+        );
+
+        res.json({
+            success: true,
+            id: aiQuestion._id,
+            question: aiQuestion.question,
+            recommendations: recommendations.recommendations,
+            metadata: recommendations.metadata
+        });
     } catch (error) {
-        console.error('AI Learning API error:', error);
-        res.status(500).json({ message: '服务器错误', error: error.message });
+        console.error('获取学习建议错误:', error);
+        res.status(500).json({
+            success: false,
+            message: '服务器错误',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 
-// DS-R1 大模型 API 配置
-const DS_R1_API_URL_OLD = process.env.DS_R1_API_URL || 'https://api.example.com/ds-r1/generate';
-const DS_R1_API_KEY_OLD = process.env.DS_R1_API_KEY || 'your-api-key';
-
-// AI 学习建议请求处理
-router.get('/', async (req, res) => {
+/**
+ * @route   GET /api/ai-learning/history
+ * @desc    获取用户的AI问答历史
+ * @access  Private
+ */
+router.get('/history', [protect, verifiedOnly], async (req, res) => {
     try {
-        const { userId } = req.query;
+        // 分页参数
+        const { page = 1, limit = 10, subject } = req.query;
 
-        if (!userId) {
-            return res.status(400).json({ message: '缺少必要参数：userId' });
+        // 构建查询条件
+        const query = { user: req.user._id };
+        if (subject) {
+            query.subject = subject;
         }
 
-        // 获取学生信息和学习历史
-        const student = await Student.findById(userId);
-        if (!student) {
-            return res.status(404).json({ message: '未找到学生信息' });
-        }
+        // 计算总数和分页
+        const total = await AIQuestion.countDocuments(query);
+        const questions = await AIQuestion.find(query)
+            .sort({ createdAt: -1 })
+            .skip((parseInt(page) - 1) * parseInt(limit))
+            .limit(parseInt(limit));
 
-        // 分析学习历史，获取学习模式和偏好
-        const learningHistory = student.learningHistory || [];
-        const subjects = {}; // 学科访问次数统计
-
-        learningHistory.forEach(record => {
-            subjects[record.subject] = (subjects[record.subject] || 0) + 1;
+        res.json({
+            success: true,
+            count: questions.length,
+            total,
+            pages: Math.ceil(total / parseInt(limit)),
+            page: parseInt(page),
+            questions
         });
+    } catch (error) {
+        console.error('获取AI问答历史错误:', error);
+        res.status(500).json({
+            success: false,
+            message: '服务器错误',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
 
-        // 找出最常访问的学科
-        let preferredSubject = '';
-        let maxCount = 0;
+/**
+ * @route   GET /api/ai-learning/:id
+ * @desc    获取特定问答记录详情
+ * @access  Private
+ */
+router.get('/:id', [protect, verifiedOnly], async (req, res) => {
+    try {
+        const aiQuestion = await AIQuestion.findById(req.params.id)
+            .populate('relatedQuestions', 'question')
+            .populate('relatedResources', 'title type');
 
-        for (const [subject, count] of Object.entries(subjects)) {
-            if (count > maxCount) {
-                maxCount = count;
-                preferredSubject = subject;
-            }
+        if (!aiQuestion) {
+            return res.status(404).json({
+                success: false,
+                message: '找不到该问题记录'
+            });
         }
 
-        // 获取该学科的推荐资源
-        const recommendedResources = await Resource.find({
-            subject: preferredSubject,
-            isApproved: true
-        })
-            .sort({ rating: -1 })
-            .limit(3);
+        // 权限检查 - 只有提问者或教师可以查看
+        if (
+            aiQuestion.user.toString() !== req.user._id.toString() &&
+            req.user.role !== 'teacher' &&
+            req.user.role !== 'admin'
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: '您没有权限查看此内容'
+            });
+        }
 
-        // 构建提示词
-        const prompt = `
-作为一个教育辅助AI，基于以下学生信息生成个性化学习建议：
-- 姓名：${student.name}
-- 年级/学历：${student.grade || '未知'}
-- 擅长学科：${preferredSubject || '暂无数据'}
-- 学习历史记录数：${learningHistory.length}
-- 最近学习记录：${learningHistory.slice(-3).map(h => `${h.subject}(${new Date(h.viewedAt).toLocaleDateString()})`).join(', ')}
+        res.json({
+            success: true,
+            question: aiQuestion
+        });
+    } catch (error) {
+        console.error('获取问答记录错误:', error);
+        res.status(500).json({
+            success: false,
+            message: '服务器错误',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
 
-请提供具体的学习建议，包括学习方法、时间管理和推荐资源。建议应该实用、具体且鼓励学生。
-`;
+/**
+ * @route   POST /api/ai-learning/:id/feedback
+ * @desc    提交对AI回答的反馈
+ * @access  Private
+ */
+router.post(
+    '/:id/feedback',
+    [
+        protect,
+        verifiedOnly,
+        check('helpful', '请提供有用性评价').isBoolean()
+    ],
+    async (req, res) => {
+        // 验证输入
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                errors: errors.array()
+            });
+        }
 
         try {
-            // 调用 DS-R1 大模型 API
-            const response = await fetch(DS_R1_API_URL_OLD, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${DS_R1_API_KEY_OLD}`
-                },
-                body: JSON.stringify({
-                    prompt: prompt,
-                    max_tokens: 300,
-                    temperature: 0.7,
-                })
-            });
+            const aiQuestion = await AIQuestion.findById(req.params.id);
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                console.error('DS-R1 API error:', data);
-                return res.status(response.status).json({
-                    message: '模型服务调用失败',
-                    error: data.error || '未知错误'
+            if (!aiQuestion) {
+                return res.status(404).json({
+                    success: false,
+                    message: '找不到该问题记录'
                 });
             }
 
-            let aiSuggestion = '';
-
-            if (data && data.text) {
-                aiSuggestion = data.text;
-            } else {
-                // 如果 API 调用成功但返回格式不符合预期，使用备用响应
-                aiSuggestion = generateFallbackSuggestion(student, preferredSubject, recommendedResources);
+            // 权限检查 - 只有提问者可以提供反馈
+            if (aiQuestion.user.toString() !== req.user._id.toString()) {
+                return res.status(403).json({
+                    success: false,
+                    message: '您没有权限提交此反馈'
+                });
             }
 
-            // 记录这次 AI 建议请求到学生历史
-            student.aiSuggestions = student.aiSuggestions || [];
-            student.aiSuggestions.push({
-                suggestion: aiSuggestion.substring(0, 100) + '...', // 只存储前100个字符
-                timestamp: new Date()
-            });
-            await student.save();
+            // 更新反馈
+            const { helpful, comments } = req.body;
+            aiQuestion.feedback = {
+                helpful,
+                comments: comments || ''
+            };
+
+            await aiQuestion.save();
 
             res.json({
-                message: aiSuggestion,
-                recommendedResources: recommendedResources.map(resource => ({
-                    id: resource._id,
-                    title: resource.title,
-                    subject: resource.subject,
-                    type: resource.type
-                }))
+                success: true,
+                message: '反馈提交成功',
+                feedback: aiQuestion.feedback
             });
-
-        } catch (apiError) {
-            console.error('DS-R1 API调用失败:', apiError);
-
-            // API调用失败时使用备用响应
-            const fallbackSuggestion = generateFallbackSuggestion(student, preferredSubject, recommendedResources);
-
-            res.json({
-                message: fallbackSuggestion,
-                recommendedResources: recommendedResources.map(resource => ({
-                    id: resource._id,
-                    title: resource.title,
-                    subject: resource.subject,
-                    type: resource.type
-                }))
+        } catch (error) {
+            console.error('提交反馈错误:', error);
+            res.status(500).json({
+                success: false,
+                message: '服务器错误',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
             });
         }
+    }
+);
+
+/**
+ * @route   GET /api/ai-learning/subjects/:subject/keywords
+ * @desc    获取特定学科的热门关键词
+ * @access  Public
+ */
+router.get('/subjects/:subject/keywords', async (req, res) => {
+    try {
+        const { subject } = req.params;
+
+        // 聚合查询获取关键词
+        const keywords = await AIQuestion.aggregate([
+            { $match: { subject } },
+            { $unwind: '$keywords' },
+            { $group: { _id: '$keywords', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+            { $limit: 20 }
+        ]);
+
+        res.json({
+            success: true,
+            subject,
+            keywords: keywords.map(k => ({ keyword: k._id, count: k.count }))
+        });
     } catch (error) {
-        console.error('生成AI学习建议失败:', error);
-        res.status(500).json({ message: '服务器错误' });
-    }
-});
-
-// 生成备用建议内容
-function generateFallbackSuggestion(student, preferredSubject, recommendedResources) {
-    const subjectDisplayNames = {
-        'math': '数学',
-        'chinese': '语文',
-        'english': '英语',
-        'physics': '物理',
-        'chemistry': '化学',
-        'biology': '生物',
-        'history': '历史',
-        'geography': '地理',
-        'politics': '政治'
-    };
-
-    const subjectName = subjectDisplayNames[preferredSubject] || preferredSubject;
-
-    let suggestion = `亲爱的${student.name}同学，`;
-
-    if (preferredSubject) {
-        suggestion += `根据您的学习历史，我发现您对${subjectName}很感兴趣。以下是一些学习建议：\n\n`;
-        suggestion += `1. 坚持每天学习${subjectName}至少30分钟，养成良好的学习习惯。\n`;
-        suggestion += `2. 尝试使用思维导图来整理${subjectName}的知识点，这有助于建立知识体系。\n`;
-        suggestion += `3. 学习时可以采用番茄工作法，每25分钟专注学习后休息5分钟。\n\n`;
-    } else {
-        suggestion += `以下是一些通用的学习建议：\n\n`;
-        suggestion += `1. 制定合理的学习计划，每天保持固定的学习时间。\n`;
-        suggestion += `2. 尝试不同的学习方法，找到最适合自己的方式。\n`;
-        suggestion += `3. 学习时可以采用番茄工作法，每25分钟专注学习后休息5分钟。\n\n`;
-    }
-
-    if (recommendedResources && recommendedResources.length > 0) {
-        suggestion += `推荐资源：\n`;
-        recommendedResources.forEach((resource, index) => {
-            suggestion += `- ${resource.title}\n`;
+        console.error('获取关键词错误:', error);
+        res.status(500).json({
+            success: false,
+            message: '服务器错误',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
         });
     }
-
-    return suggestion;
-}
+});
 
 module.exports = router; 
