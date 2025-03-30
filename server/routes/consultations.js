@@ -1,275 +1,602 @@
 const express = require('express');
 const router = express.Router();
+const { check, validationResult } = require('express-validator');
 const Consultation = require('../models/Consultation');
-const ConsultationMessage = require('../models/ConsultationMessage');
-const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const { protect, verifiedOnly, authorize } = require('../middleware/auth');
 
-// JWT 认证中间件
-const JWT_SECRET = 'education-resource-distribution-platform-secret';
-const authenticateJWT = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (authHeader) {
-        const token = authHeader.split(' ')[1];
-        jwt.verify(token, JWT_SECRET, (err, user) => {
-            if (err) {
-                return res.status(403).json({ message: '认证失败，请重新登录' });
-            }
-            req.user = user;
-            next();
-        });
-    } else {
-        res.status(401).json({ message: '未授权，请登录' });
-    }
-};
-
-// 获取学生的咨询历史
-router.get('/', async (req, res) => {
-    try {
-        const { userId } = req.query;
-        if (!userId) {
-            return res.status(400).json({ message: '缺少用户ID' });
-        }
-
-        const consultations = await Consultation.find({ userId }).sort({ date: -1 });
-        res.json(consultations);
-    } catch (error) {
-        console.error('获取咨询历史失败:', error);
-        res.status(500).json({ message: '服务器错误' });
-    }
-});
-
-// 获取特定咨询的详情
-router.get('/:id', async (req, res) => {
-    try {
-        const { id } = req.params;
-        const consultation = await Consultation.findById(id);
-
-        if (!consultation) {
-            return res.status(404).json({ message: '咨询不存在' });
-        }
-
-        // 获取相关消息
-        const messages = await ConsultationMessage.find({ consultationId: id }).sort('time');
-
-        const consultationWithMessages = {
-            ...consultation.toObject(),
-            messages: messages
-        };
-
-        res.json(consultationWithMessages);
-    } catch (error) {
-        console.error('获取咨询详情失败:', error);
-        res.status(500).json({ message: '服务器错误' });
-    }
-});
-
-// 学生创建新咨询请求
-router.post('/', async (req, res) => {
-    try {
-        const { userId, subject, question, urgency, date, status } = req.body;
-
-        // 从数据库获取学生信息
-        const Student = require('../models/Student');
-        const student = await Student.findById(userId);
-
-        if (!student) {
-            return res.status(404).json({ message: '学生不存在' });
-        }
-
-        const newConsultation = new Consultation({
-            userId,
-            studentName: student.name,
-            studentGrade: student.grade,
-            subject,
-            question,
-            urgency,
-            date,
-            status
-        });
-
-        await newConsultation.save();
-
-        // 发送 WebSocket 通知给潜在的老师
-        const io = req.app.get('io');
-        if (io) {
-            io.emit('new-consultation-request', {
-                id: newConsultation._id,
-                studentName: student.name,
-                subject,
-                urgency
+/**
+ * @route   POST /api/consultations
+ * @desc    创建新咨询请求
+ * @access  Private (学生)
+ */
+router.post(
+    '/',
+    [
+        protect,
+        verifiedOnly,
+        authorize('student'),
+        [
+            check('teacher', '请选择教师').not().isEmpty(),
+            check('subject', '请提供咨询主题').not().isEmpty(),
+            check('description', '请提供问题描述').not().isEmpty()
+        ]
+    ],
+    async (req, res) => {
+        // 验证输入
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                errors: errors.array()
             });
         }
 
-        res.status(201).json(newConsultation);
-    } catch (error) {
-        console.error('创建咨询失败:', error);
-        res.status(500).json({ message: '服务器错误' });
+        try {
+            // 提取请求数据
+            const {
+                teacher,
+                subject,
+                description,
+                scheduledTime,
+                duration,
+                isVideoEnabled
+            } = req.body;
+
+            // 确认教师存在且角色为教师
+            const teacherExists = await User.findOne({
+                _id: teacher,
+                role: 'teacher'
+            });
+
+            if (!teacherExists) {
+                return res.status(404).json({
+                    success: false,
+                    message: '找不到指定的教师'
+                });
+            }
+
+            // 创建咨询记录
+            const consultation = await Consultation.create({
+                student: req.user._id,
+                teacher,
+                subject,
+                description,
+                scheduledTime: scheduledTime || undefined,
+                duration: duration || 30,
+                isVideoEnabled: isVideoEnabled !== undefined ? isVideoEnabled : true
+            });
+
+            // 返回新创建的咨询
+            const populatedConsultation = await Consultation.findById(consultation._id)
+                .populate('student', 'name avatar')
+                .populate('teacher', 'name avatar profile');
+
+            res.status(201).json({
+                success: true,
+                consultation: populatedConsultation,
+                message: '咨询请求已发送，等待教师接受'
+            });
+        } catch (error) {
+            console.error('创建咨询错误:', error);
+            res.status(500).json({
+                success: false,
+                message: '服务器错误',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
     }
-});
+);
 
-// 获取等待被接受的咨询请求（教师用）
-router.get('/requests', authenticateJWT, async (req, res) => {
+/**
+ * @route   GET /api/consultations
+ * @desc    获取用户的咨询列表
+ * @access  Private
+ */
+router.get('/', [protect, verifiedOnly], async (req, res) => {
     try {
-        // 可以根据教师学科筛选
-        const { teacherId } = req.query;
-        const Teacher = require('../models/Teacher');
-        const teacher = await Teacher.findById(teacherId);
+        let query = {};
 
-        if (!teacher) {
-            return res.status(404).json({ message: '教师不存在' });
+        // 根据用户角色过滤咨询
+        if (req.user.role === 'student') {
+            query.student = req.user._id;
+        } else if (req.user.role === 'teacher') {
+            query.teacher = req.user._id;
+        } else if (req.user.role === 'admin') {
+            // 管理员可以查看所有咨询
+        } else {
+            return res.status(403).json({
+                success: false,
+                message: '您没有权限访问咨询记录'
+            });
         }
 
-        // 获取等待中的咨询，可以根据教师专业领域筛选
-        let consultations = await Consultation.find({ status: '等待中' }).sort('-urgency date');
+        // 查询参数
+        const { status, limit = 10, page = 1 } = req.query;
 
-        res.json(consultations);
+        if (status) {
+            query.status = status;
+        }
+
+        // 计算总数和分页
+        const total = await Consultation.countDocuments(query);
+        const consultations = await Consultation.find(query)
+            .populate('student', 'name avatar')
+            .populate('teacher', 'name avatar profile.subject')
+            .sort({ createdAt: -1 })
+            .skip((parseInt(page) - 1) * parseInt(limit))
+            .limit(parseInt(limit));
+
+        res.json({
+            success: true,
+            count: consultations.length,
+            total,
+            pages: Math.ceil(total / parseInt(limit)),
+            page: parseInt(page),
+            consultations
+        });
     } catch (error) {
-        console.error('获取咨询请求失败:', error);
-        res.status(500).json({ message: '服务器错误' });
+        console.error('获取咨询列表错误:', error);
+        res.status(500).json({
+            success: false,
+            message: '服务器错误',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
     }
 });
 
-// 教师接受咨询请求
-router.post('/:id/accept', authenticateJWT, async (req, res) => {
+/**
+ * @route   GET /api/consultations/:id
+ * @desc    获取特定咨询详情
+ * @access  Private
+ */
+router.get('/:id', [protect, verifiedOnly], async (req, res) => {
     try {
-        const { id } = req.params;
-        const { teacherId } = req.body;
+        const consultation = await Consultation.findById(req.params.id)
+            .populate('student', 'name avatar profile.grade')
+            .populate('teacher', 'name avatar profile')
+            .populate('messages.sender', 'name avatar role');
 
-        const consultation = await Consultation.findById(id);
         if (!consultation) {
-            return res.status(404).json({ message: '咨询不存在' });
+            return res.status(404).json({
+                success: false,
+                message: '找不到咨询记录'
+            });
         }
 
-        if (consultation.status !== '等待中') {
-            return res.status(400).json({ message: '该咨询已被接受或已完成' });
+        // 验证访问权限
+        if (
+            consultation.student._id.toString() !== req.user._id.toString() &&
+            consultation.teacher._id.toString() !== req.user._id.toString() &&
+            req.user.role !== 'admin'
+        ) {
+            return res.status(403).json({
+                success: false,
+                message: '您没有权限查看此咨询记录'
+            });
         }
 
-        // 获取教师信息
-        const Teacher = require('../models/Teacher');
-        const teacher = await Teacher.findById(teacherId);
+        // 标记当前用户的未读消息为已读
+        await consultation.markAllAsRead(req.user._id);
 
-        if (!teacher) {
-            return res.status(404).json({ message: '教师不存在' });
+        res.json({
+            success: true,
+            consultation
+        });
+    } catch (error) {
+        console.error('获取咨询详情错误:', error);
+        res.status(500).json({
+            success: false,
+            message: '服务器错误',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * @route   PUT /api/consultations/:id/accept
+ * @desc    教师接受咨询请求
+ * @access  Private (教师)
+ */
+router.put(
+    '/:id/accept',
+    [protect, verifiedOnly, authorize('teacher')],
+    async (req, res) => {
+        try {
+            const consultation = await Consultation.findById(req.params.id);
+
+            if (!consultation) {
+                return res.status(404).json({
+                    success: false,
+                    message: '找不到咨询记录'
+                });
+            }
+
+            // 验证是否为指定的教师
+            if (consultation.teacher.toString() !== req.user._id.toString()) {
+                return res.status(403).json({
+                    success: false,
+                    message: '您不是此咨询的指定教师'
+                });
+            }
+
+            // 验证咨询是否可以接受
+            if (consultation.status !== 'pending') {
+                return res.status(400).json({
+                    success: false,
+                    message: `无法接受处于 ${consultation.status} 状态的咨询`
+                });
+            }
+
+            // 更新咨询状态
+            consultation.status = 'accepted';
+            await consultation.save();
+
+            // 返回更新后的咨询
+            const updatedConsultation = await Consultation.findById(req.params.id)
+                .populate('student', 'name avatar')
+                .populate('teacher', 'name avatar');
+
+            res.json({
+                success: true,
+                consultation: updatedConsultation,
+                message: '咨询已接受'
+            });
+        } catch (error) {
+            console.error('接受咨询错误:', error);
+            res.status(500).json({
+                success: false,
+                message: '服务器错误',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
+    }
+);
+
+/**
+ * @route   PUT /api/consultations/:id/start
+ * @desc    开始咨询会话
+ * @access  Private (教师)
+ */
+router.put(
+    '/:id/start',
+    [protect, verifiedOnly, authorize('teacher')],
+    async (req, res) => {
+        try {
+            const consultation = await Consultation.findById(req.params.id);
+
+            if (!consultation) {
+                return res.status(404).json({
+                    success: false,
+                    message: '找不到咨询记录'
+                });
+            }
+
+            // 验证是否为指定的教师
+            if (consultation.teacher.toString() !== req.user._id.toString()) {
+                return res.status(403).json({
+                    success: false,
+                    message: '您不是此咨询的指定教师'
+                });
+            }
+
+            // 验证咨询是否可以开始
+            if (consultation.status !== 'accepted') {
+                return res.status(400).json({
+                    success: false,
+                    message: `无法开始处于 ${consultation.status} 状态的咨询`
+                });
+            }
+
+            // 生成视频会话ID (如果启用视频)
+            if (consultation.isVideoEnabled) {
+                // 使用时间戳和会话ID生成唯一视频会话ID
+                consultation.sessionId = `${Date.now()}-${consultation._id}`;
+            }
+
+            // 更新咨询状态
+            consultation.status = 'ongoing';
+            consultation.startTime = Date.now();
+            await consultation.save();
+
+            // 返回更新后的咨询
+            const updatedConsultation = await Consultation.findById(req.params.id)
+                .populate('student', 'name avatar')
+                .populate('teacher', 'name avatar');
+
+            res.json({
+                success: true,
+                consultation: updatedConsultation,
+                message: '咨询已开始'
+            });
+        } catch (error) {
+            console.error('开始咨询错误:', error);
+            res.status(500).json({
+                success: false,
+                message: '服务器错误',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
+    }
+);
+
+/**
+ * @route   PUT /api/consultations/:id/complete
+ * @desc    结束咨询会话
+ * @access  Private (教师)
+ */
+router.put(
+    '/:id/complete',
+    [protect, verifiedOnly, authorize('teacher')],
+    async (req, res) => {
+        try {
+            const consultation = await Consultation.findById(req.params.id);
+
+            if (!consultation) {
+                return res.status(404).json({
+                    success: false,
+                    message: '找不到咨询记录'
+                });
+            }
+
+            // 验证是否为指定的教师
+            if (consultation.teacher.toString() !== req.user._id.toString()) {
+                return res.status(403).json({
+                    success: false,
+                    message: '您不是此咨询的指定教师'
+                });
+            }
+
+            // 验证咨询是否可以结束
+            if (consultation.status !== 'ongoing') {
+                return res.status(400).json({
+                    success: false,
+                    message: `无法结束处于 ${consultation.status} 状态的咨询`
+                });
+            }
+
+            // 更新咨询状态
+            consultation.status = 'completed';
+            consultation.endTime = Date.now();
+            await consultation.save();
+
+            // 返回更新后的咨询
+            const updatedConsultation = await Consultation.findById(req.params.id)
+                .populate('student', 'name avatar')
+                .populate('teacher', 'name avatar');
+
+            res.json({
+                success: true,
+                consultation: updatedConsultation,
+                message: '咨询已完成'
+            });
+        } catch (error) {
+            console.error('结束咨询错误:', error);
+            res.status(500).json({
+                success: false,
+                message: '服务器错误',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
+    }
+);
+
+/**
+ * @route   PUT /api/consultations/:id/cancel
+ * @desc    取消咨询请求
+ * @access  Private (学生/教师/管理员)
+ */
+router.put('/:id/cancel', [protect, verifiedOnly], async (req, res) => {
+    try {
+        const consultation = await Consultation.findById(req.params.id);
+
+        if (!consultation) {
+            return res.status(404).json({
+                success: false,
+                message: '找不到咨询记录'
+            });
+        }
+
+        // 验证权限
+        const isStudent = consultation.student.toString() === req.user._id.toString();
+        const isTeacher = consultation.teacher.toString() === req.user._id.toString();
+        const isAdmin = req.user.role === 'admin';
+
+        if (!isStudent && !isTeacher && !isAdmin) {
+            return res.status(403).json({
+                success: false,
+                message: '您没有权限取消此咨询'
+            });
+        }
+
+        // 验证咨询是否可以取消
+        if (consultation.status === 'completed' || consultation.status === 'cancelled') {
+            return res.status(400).json({
+                success: false,
+                message: `无法取消处于 ${consultation.status} 状态的咨询`
+            });
         }
 
         // 更新咨询状态
-        consultation.status = '已接受';
-        consultation.teacherId = teacherId;
-        consultation.teacherName = teacher.name;
+        consultation.status = 'cancelled';
         await consultation.save();
 
-        // 发送 WebSocket 通知给学生
-        const io = req.app.get('io');
-        if (io) {
-            io.emit('consultation-accepted', {
-                id: consultation._id,
-                teacherName: teacher.name,
-                studentId: consultation.userId
+        // 返回更新后的咨询
+        const updatedConsultation = await Consultation.findById(req.params.id)
+            .populate('student', 'name avatar')
+            .populate('teacher', 'name avatar');
+
+        res.json({
+            success: true,
+            consultation: updatedConsultation,
+            message: '咨询已取消'
+        });
+    } catch (error) {
+        console.error('取消咨询错误:', error);
+        res.status(500).json({
+            success: false,
+            message: '服务器错误',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * @route   POST /api/consultations/:id/messages
+ * @desc    发送咨询消息
+ * @access  Private (学生/教师)
+ */
+router.post(
+    '/:id/messages',
+    [
+        protect,
+        verifiedOnly,
+        check('text', '消息内容不能为空').not().isEmpty()
+    ],
+    async (req, res) => {
+        // 验证输入
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                errors: errors.array()
             });
         }
 
-        // 获取相关消息
-        const messages = await ConsultationMessage.find({ consultationId: id }).sort('time');
+        try {
+            const consultation = await Consultation.findById(req.params.id);
 
-        const consultationWithMessages = {
-            ...consultation.toObject(),
-            messages: messages
-        };
+            if (!consultation) {
+                return res.status(404).json({
+                    success: false,
+                    message: '找不到咨询记录'
+                });
+            }
 
-        res.json(consultationWithMessages);
-    } catch (error) {
-        console.error('接受咨询失败:', error);
-        res.status(500).json({ message: '服务器错误' });
+            // 验证权限
+            const isStudent = consultation.student.toString() === req.user._id.toString();
+            const isTeacher = consultation.teacher.toString() === req.user._id.toString();
+
+            if (!isStudent && !isTeacher) {
+                return res.status(403).json({
+                    success: false,
+                    message: '您没有权限在此咨询中发送消息'
+                });
+            }
+
+            // 验证咨询状态
+            if (consultation.status === 'cancelled' || consultation.status === 'completed') {
+                return res.status(400).json({
+                    success: false,
+                    message: `无法在处于 ${consultation.status} 状态的咨询中发送消息`
+                });
+            }
+
+            // 添加新消息
+            const newMessage = {
+                sender: req.user._id,
+                text: req.body.text,
+                timestamp: Date.now()
+            };
+
+            consultation.messages.push(newMessage);
+            await consultation.save();
+
+            // 返回填充了发送者信息的消息
+            const updatedConsultation = await Consultation.findById(req.params.id)
+                .populate('messages.sender', 'name avatar role');
+
+            const addedMessage = updatedConsultation.messages[updatedConsultation.messages.length - 1];
+
+            res.status(201).json({
+                success: true,
+                message: addedMessage,
+                consultationId: consultation._id
+            });
+        } catch (error) {
+            console.error('发送咨询消息错误:', error);
+            res.status(500).json({
+                success: false,
+                message: '服务器错误',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
+        }
     }
-});
+);
 
-// 获取教师的活跃咨询
-router.get('/active', authenticateJWT, async (req, res) => {
-    try {
-        const { teacherId } = req.query;
-
-        const consultations = await Consultation.find({
-            teacherId,
-            status: '已接受'
-        }).sort('date');
-
-        // 为每个咨询添加消息
-        const consultationsWithMessages = await Promise.all(
-            consultations.map(async (consultation) => {
-                const messages = await ConsultationMessage.find({
-                    consultationId: consultation._id
-                }).sort('time');
-
-                return {
-                    ...consultation.toObject(),
-                    messages
-                };
-            })
-        );
-
-        res.json(consultationsWithMessages);
-    } catch (error) {
-        console.error('获取活跃咨询失败:', error);
-        res.status(500).json({ message: '服务器错误' });
-    }
-});
-
-// 完成咨询
-router.post('/:id/complete', authenticateJWT, async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        const consultation = await Consultation.findById(id);
-        if (!consultation) {
-            return res.status(404).json({ message: '咨询不存在' });
+/**
+ * @route   POST /api/consultations/:id/rate
+ * @desc    对已完成的咨询进行评分
+ * @access  Private (学生)
+ */
+router.post(
+    '/:id/rate',
+    [
+        protect,
+        verifiedOnly,
+        authorize('student'),
+        [
+            check('rating', '评分必须是1-5之间的数字').isInt({ min: 1, max: 5 }),
+            check('feedback', '反馈内容是必需的').not().isEmpty()
+        ]
+    ],
+    async (req, res) => {
+        // 验证输入
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({
+                success: false,
+                errors: errors.array()
+            });
         }
 
-        if (consultation.status !== '已接受') {
-            return res.status(400).json({ message: '该咨询尚未被接受或已经完成' });
+        try {
+            const consultation = await Consultation.findById(req.params.id);
+
+            if (!consultation) {
+                return res.status(404).json({
+                    success: false,
+                    message: '找不到咨询记录'
+                });
+            }
+
+            // 验证权限
+            if (consultation.student.toString() !== req.user._id.toString()) {
+                return res.status(403).json({
+                    success: false,
+                    message: '您不是此咨询的学生'
+                });
+            }
+
+            // 验证咨询是否已完成
+            if (consultation.status !== 'completed') {
+                return res.status(400).json({
+                    success: false,
+                    message: '只能对已完成的咨询进行评分'
+                });
+            }
+
+            // 更新评分和反馈
+            const { rating, feedback } = req.body;
+            consultation.rating = rating;
+            consultation.feedback = feedback;
+            await consultation.save();
+
+            res.json({
+                success: true,
+                message: '评分提交成功',
+                rating: consultation.rating,
+                feedback: consultation.feedback
+            });
+        } catch (error) {
+            console.error('咨询评分错误:', error);
+            res.status(500).json({
+                success: false,
+                message: '服务器错误',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
         }
-
-        // 更新状态
-        consultation.status = '已完成';
-        consultation.completedAt = new Date();
-        await consultation.save();
-
-        res.json(consultation);
-    } catch (error) {
-        console.error('完成咨询失败:', error);
-        res.status(500).json({ message: '服务器错误' });
     }
-});
-
-// 添加咨询消息
-router.post('/messages', async (req, res) => {
-    try {
-        const { consultationId, content, sender, time } = req.body;
-
-        const consultation = await Consultation.findById(consultationId);
-        if (!consultation) {
-            return res.status(404).json({ message: '咨询不存在' });
-        }
-
-        const newMessage = new ConsultationMessage({
-            consultationId,
-            content,
-            sender,
-            time
-        });
-
-        await newMessage.save();
-
-        // 发送 WebSocket 通知
-        const io = req.app.get('io');
-        if (io) {
-            io.to(`consultation-${consultationId}`).emit('message', newMessage);
-        }
-
-        res.status(201).json(newMessage);
-    } catch (error) {
-        console.error('发送消息失败:', error);
-        res.status(500).json({ message: '服务器错误' });
-    }
-});
+);
 
 module.exports = router; 

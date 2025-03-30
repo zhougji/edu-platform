@@ -39,7 +39,7 @@
     </div>
     
     <div class="footer-bottom">
-      <p>&copy; 2023 教育资源分配系统 - 学生平台 版权所有</p>
+      <p>&copy; 2025 教育资源分配系统 - 学生平台 版权所有</p>
       <p>
         <router-link to="/terms">使用条款</router-link> | 
         <router-link to="/privacy">隐私政策</router-link> | 
