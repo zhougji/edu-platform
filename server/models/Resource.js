@@ -12,10 +12,14 @@ const ResourceSchema = new mongoose.Schema({
         required: [true, '请提供资源描述'],
         maxlength: [2000, '描述不能超过2000个字符']
     },
+    content: {
+        type: String,
+        required: [true, '请提供资源内容']
+    },
     type: {
         type: String,
-        enum: ['video', 'document', 'image', 'audio', 'other'],
-        default: 'video'
+        enum: ['video', 'document', 'article', 'exercise'],
+        required: [true, '请指定资源类型']
     },
     subject: {
         type: String,
@@ -32,12 +36,7 @@ const ResourceSchema = new mongoose.Schema({
             'university', 'professional', 'other']
     },
     tags: [String],
-    videoUrl: {
-        type: String
-    },
-    videoFile: {
-        type: String
-    },
+    fileUrl: String,
     thumbnailUrl: {
         type: String
     },
@@ -65,10 +64,10 @@ const ResourceSchema = new mongoose.Schema({
         type: Number,
         default: 0
     },
-    createdBy: {
+    author: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: [true, '请指定资源作者']
     },
     comments: [
         {
@@ -141,7 +140,12 @@ ResourceSchema.pre('save', function (next) {
 });
 
 // 索引优化查询性能
-ResourceSchema.index({ title: 'text', description: 'text', tags: 'text' });
+ResourceSchema.index({
+    title: 'text',
+    description: 'text',
+    content: 'text',
+    tags: 'text'
+});
 ResourceSchema.index({ subject: 1, grade: 1 });
 ResourceSchema.index({ createdAt: -1 });
 ResourceSchema.index({ averageRating: -1 });

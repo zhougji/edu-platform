@@ -10,13 +10,16 @@ const UserSchema = new mongoose.Schema({
     },
     email: {
         type: String,
-        required: [true, '请提供邮箱'],
         unique: true,
-        match: [
-            /^([\w-\.]+@([\w-]+\.)+[\w-]{2,4})?$/,
-            '请提供有效的邮箱地址'
-        ],
+        sparse: true, // 允许多个文档的此字段为null
+        trim: true,
         lowercase: true
+    },
+    phone: {
+        type: String,
+        unique: true,
+        sparse: true, // 允许多个文档的此字段为null
+        trim: true
     },
     password: {
         type: String,
@@ -30,8 +33,8 @@ const UserSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['student', 'teacher', 'admin'],
-        default: 'student'
+        required: true,
+        enum: ['student', 'teacher', 'admin']
     },
     isEmailVerified: {
         type: Boolean,
@@ -42,20 +45,32 @@ const UserSchema = new mongoose.Schema({
     resetPasswordToken: String,
     resetPasswordExpire: Date,
     profile: {
-        // 共有属性
+        realName: String,
+        avatar: String,
+        age: Number,
+        grade: String, // 适用于学生
+        subjects: [String], // 适用于教师，教授的学科
         bio: String,
-        phone: String,
-
-        // 学生特有属性
-        grade: String,
-        interests: [String],
-
-        // 教师特有属性
-        subject: String,
-        title: String,
-        experience: Number,
-        expertise: [String]
+        specialties: [String] // 适用于教师，擅长的内容
     },
+    verification: { // 教师实名认证信息
+        realName: String,
+        idNumber: String,
+        teacherCertificate: String,
+        status: {
+            type: String,
+            enum: ['pending', 'approved', 'rejected'],
+            default: 'pending'
+        },
+        submittedAt: Date,
+        reviewedAt: Date
+    },
+    tokens: [{
+        token: {
+            type: String,
+            required: true
+        }
+    }],
     createdAt: {
         type: Date,
         default: Date.now
@@ -123,6 +138,21 @@ UserSchema.methods.generateResetPasswordToken = function () {
 
     // 返回未加密的令牌（用于发送邮件）
     return resetToken;
+};
+
+// 用户对象转JSON时去除敏感信息
+UserSchema.methods.toJSON = function () {
+    const user = this;
+    const userObject = user.toObject();
+
+    delete userObject.password;
+    delete userObject.tokens;
+
+    if (user.role === 'teacher' && userObject.verification) {
+        delete userObject.verification.idNumber;
+    }
+
+    return userObject;
 };
 
 module.exports = mongoose.model('User', UserSchema); 

@@ -168,53 +168,62 @@ router.post(
 
 /**
  * @route   GET /api/resources
- * @desc    获取资源列表
+ * @desc    获取所有资源(带筛选和搜索)
  * @access  Public
  */
 router.get('/', async (req, res) => {
     try {
-        const {
-            page = 1,
-            limit = 10,
-            subject,
-            grade,
-            type,
-            search,
-            sort = '-createdAt'
-        } = req.query;
+        let query = { isPublished: true };
 
-        // 构建查询条件
-        const query = {};
-
-        if (subject) query.subject = subject;
-        if (grade) query.grade = grade;
-        if (type) query.type = type;
-
-        // 搜索功能
-        if (search) {
-            query.$or = [
-                { title: { $regex: search, $options: 'i' } },
-                { description: { $regex: search, $options: 'i' } },
-                { tags: { $regex: search, $options: 'i' } }
-            ];
+        // 筛选条件
+        if (req.query.subject) {
+            query.subject = req.query.subject;
         }
 
-        // 计算分页
-        const total = await Resource.countDocuments(query);
-        const resources = await Resource.find(query)
-            .populate('createdBy', 'name avatar')
-            .sort(sort)
-            .skip((parseInt(page) - 1) * parseInt(limit))
-            .limit(parseInt(limit));
+        if (req.query.grade) {
+            query.grade = req.query.grade;
+        }
 
-        // 返回结果
+        if (req.query.type) {
+            query.type = req.query.type;
+        }
+
+        // 搜索关键词
+        if (req.query.keyword) {
+            query.$text = { $search: req.query.keyword };
+        }
+
+        // 分页设置
+        const page = parseInt(req.query.page, 10) || 1;
+        const limit = parseInt(req.query.limit, 10) || 10;
+        const skip = (page - 1) * limit;
+
+        // 排序设置
+        const sort = {};
+        if (req.query.sortBy) {
+            const parts = req.query.sortBy.split(':');
+            sort[parts[0]] = parts[1] === 'desc' ? -1 : 1;
+        } else {
+            sort.createdAt = -1; // 默认按创建时间降序
+        }
+
+        // 查询资源
+        const resources = await Resource.find(query)
+            .sort(sort)
+            .skip(skip)
+            .limit(limit)
+            .populate('author', 'name avatar profile.subjects');
+
+        // 获取总数
+        const total = await Resource.countDocuments(query);
+
         res.json({
             success: true,
             count: resources.length,
             total,
-            pages: Math.ceil(total / parseInt(limit)),
-            page: parseInt(page),
-            resources
+            page,
+            pages: Math.ceil(total / limit),
+            data: resources
         });
     } catch (error) {
         console.error('获取资源列表错误:', error);
@@ -234,8 +243,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
     try {
         const resource = await Resource.findById(req.params.id)
-            .populate('createdBy', 'name avatar profile')
-            .populate('comments.user', 'name avatar');
+            .populate('author', 'name avatar profile.subjects');
 
         if (!resource) {
             return res.status(404).json({
@@ -246,11 +254,11 @@ router.get('/:id', async (req, res) => {
 
         // 增加浏览次数
         resource.views += 1;
-        await resource.save({ validateBeforeSave: false });
+        await resource.save();
 
         res.json({
             success: true,
-            resource
+            data: resource
         });
     } catch (error) {
         console.error('获取资源详情错误:', error);
@@ -598,6 +606,75 @@ router.get('/:id/stream', async (req, res) => {
         }
     } catch (error) {
         console.error('视频流错误:', error);
+        res.status(500).json({
+            success: false,
+            message: '服务器错误',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * @route   GET /api/resources/subjects
+ * @desc    获取所有学科列表
+ * @access  Public
+ */
+router.get('/subjects', async (req, res) => {
+    try {
+        const subjects = await Resource.distinct('subject');
+
+        res.json({
+            success: true,
+            data: subjects
+        });
+    } catch (error) {
+        console.error('获取学科列表错误:', error);
+        res.status(500).json({
+            success: false,
+            message: '服务器错误',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * @route   GET /api/resources/grades
+ * @desc    获取所有年级列表
+ * @access  Public
+ */
+router.get('/grades', async (req, res) => {
+    try {
+        const grades = await Resource.distinct('grade');
+
+        res.json({
+            success: true,
+            data: grades
+        });
+    } catch (error) {
+        console.error('获取年级列表错误:', error);
+        res.status(500).json({
+            success: false,
+            message: '服务器错误',
+            error: process.env.NODE_ENV === 'development' ? error.message : undefined
+        });
+    }
+});
+
+/**
+ * @route   GET /api/resources/types
+ * @desc    获取所有资源类型列表
+ * @access  Public
+ */
+router.get('/types', async (req, res) => {
+    try {
+        const types = await Resource.distinct('type');
+
+        res.json({
+            success: true,
+            data: types
+        });
+    } catch (error) {
+        console.error('获取资源类型列表错误:', error);
         res.status(500).json({
             success: false,
             message: '服务器错误',
