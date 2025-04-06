@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const config = require('../config/config');
 const User = require('../models/User');
 
 // 从环境变量获取JWT密钥
@@ -7,72 +8,35 @@ const JWT_SECRET = process.env.JWT_SECRET;
 /**
  * 保护路由 - 验证用户令牌并添加用户身份
  */
-exports.protect = async (req, res, next) => {
-    let token;
-
-    // 检查请求头中的Authorization
-    if (
-        req.headers.authorization &&
-        req.headers.authorization.startsWith('Bearer')
-    ) {
-        // 从Bearer令牌中提取JWT
-        token = req.headers.authorization.split(' ')[1];
-    }
-    // 也可以从cookies中获取JWT
-    else if (req.cookies?.token) {
-        token = req.cookies.token;
-    }
-
-    // 检查是否提供了令牌
-    if (!token) {
-        return res.status(401).json({
-            success: false,
-            message: '访问被拒绝，请先登录'
-        });
-    }
-
+const auth = async (req, res, next) => {
     try {
-        // 验证令牌
-        const decoded = jwt.verify(token, JWT_SECRET);
-
-        // 获取用户信息
-        const user = await User.findById(decoded.id);
+        // 从请求头获取token
+        const token = req.header('Authorization').replace('Bearer ', '');
+        // 验证token
+        const decoded = jwt.verify(token, config.JWT_SECRET);
+        // 查找对应用户
+        const user = await User.findOne({ _id: decoded._id, 'tokens.token': token });
 
         if (!user) {
-            return res.status(401).json({
-                success: false,
-                message: '找不到该用户'
-            });
+            throw new Error();
         }
 
-        // 添加用户对象到请求
+        // 将用户和token信息存储到请求对象，供后续路由处理器使用
+        req.token = token;
         req.user = user;
         next();
     } catch (error) {
-        if (error.name === 'TokenExpiredError') {
-            return res.status(401).json({
-                success: false,
-                message: '会话已过期，请重新登录'
-            });
-        }
-
-        return res.status(401).json({
-            success: false,
-            message: '访问被拒绝，认证无效'
-        });
+        res.status(401).send({ error: '请先登录' });
     }
 };
 
 /**
  * 授权特定角色访问
  */
-exports.authorize = (...roles) => {
+const checkRole = (role) => {
     return (req, res, next) => {
-        if (!roles.includes(req.user.role)) {
-            return res.status(403).json({
-                success: false,
-                message: `用户角色 ${req.user.role} 没有权限访问此资源`
-            });
+        if (req.user.role !== role) {
+            return res.status(403).send({ error: '无权访问此资源' });
         }
         next();
     };
@@ -81,7 +45,7 @@ exports.authorize = (...roles) => {
 /**
  * 验证用户是否已验证邮箱
  */
-exports.verifiedOnly = (req, res, next) => {
+const verifiedOnly = (req, res, next) => {
     if (!req.user.isEmailVerified) {
         return res.status(403).json({
             success: false,
@@ -94,7 +58,7 @@ exports.verifiedOnly = (req, res, next) => {
 /**
  * 生成JWT令牌
  */
-exports.generateToken = (userId) => {
+const generateToken = (userId) => {
     return jwt.sign({ id: userId }, JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRE || '7d'
     });
@@ -107,7 +71,7 @@ const requestCounts = {};
 const REQUEST_WINDOW = 60 * 1000; // 1分钟时间窗口
 const MAX_REQUESTS = 60; // 每个IP每分钟最大请求数
 
-exports.rateLimiter = (req, res, next) => {
+const rateLimiter = (req, res, next) => {
     const ip = req.ip;
     const now = Date.now();
 
@@ -132,4 +96,6 @@ exports.rateLimiter = (req, res, next) => {
     }
 
     next();
-}; 
+};
+
+module.exports = { auth, checkRole, verifiedOnly, generateToken, rateLimiter }; 

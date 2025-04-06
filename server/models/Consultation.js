@@ -4,54 +4,33 @@ const ConsultationSchema = new mongoose.Schema({
     student: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: [true, '请指定学生']
+        required: [true, '请提供学生ID']
     },
     teacher: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: [true, '请指定教师']
+        required: [true, '请提供教师ID']
     },
     subject: {
         type: String,
-        required: [true, '请指定咨询主题']
+        required: [true, '请提供咨询学科']
     },
-    description: {
+    question: {
         type: String,
-        required: [true, '请提供问题描述'],
-        maxlength: [1000, '描述不能超过1000个字符']
+        required: [true, '请提供咨询问题'],
+        maxlength: [1000, '问题描述不能超过1000个字符']
     },
     status: {
         type: String,
-        enum: ['pending', 'accepted', 'ongoing', 'completed', 'cancelled'],
+        enum: ['pending', 'accepted', 'rejected', 'completed', 'canceled'],
         default: 'pending'
     },
     scheduledTime: {
         type: Date
     },
     duration: {
-        type: Number, // 预计时长（分钟）
+        type: Number, // 单位：分钟
         default: 30
-    },
-    startTime: {
-        type: Date
-    },
-    endTime: {
-        type: Date
-    },
-    isVideoEnabled: {
-        type: Boolean,
-        default: true
-    },
-    sessionId: {
-        type: String // 视频会话ID
-    },
-    rating: {
-        type: Number,
-        min: 1,
-        max: 5
-    },
-    feedback: {
-        type: String
     },
     messages: [
         {
@@ -60,34 +39,29 @@ const ConsultationSchema = new mongoose.Schema({
                 ref: 'User',
                 required: true
             },
-            text: {
+            content: {
                 type: String,
-                required: true
+                required: [true, '消息内容不能为空']
             },
             timestamp: {
                 type: Date,
                 default: Date.now
             },
-            isRead: {
+            read: {
                 type: Boolean,
                 default: false
             }
         }
     ],
-    attachments: [
-        {
-            name: String,
-            path: String,
-            uploadedBy: {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: 'User'
-            },
-            uploadedAt: {
-                type: Date,
-                default: Date.now
-            }
-        }
-    ],
+    feedback: {
+        rating: {
+            type: Number,
+            min: 1,
+            max: 5
+        },
+        comment: String,
+        createdAt: Date
+    },
     createdAt: {
         type: Date,
         default: Date.now
@@ -96,38 +70,12 @@ const ConsultationSchema = new mongoose.Schema({
         type: Date,
         default: Date.now
     }
-}, {
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true }
 });
 
-// 更新时间戳中间件
+// 更新时间钩子
 ConsultationSchema.pre('save', function (next) {
     this.updatedAt = Date.now();
     next();
 });
-
-// 获取未读消息数量
-ConsultationSchema.methods.getUnreadMessages = function (userId) {
-    return this.messages.filter(
-        message => message.sender.toString() !== userId.toString() && !message.isRead
-    ).length;
-};
-
-// 标记所有消息为已读
-ConsultationSchema.methods.markAllAsRead = function (userId) {
-    this.messages.forEach(message => {
-        if (message.sender.toString() !== userId.toString()) {
-            message.isRead = true;
-        }
-    });
-    return this.save();
-};
-
-// 索引优化查询性能
-ConsultationSchema.index({ student: 1, status: 1 });
-ConsultationSchema.index({ teacher: 1, status: 1 });
-ConsultationSchema.index({ createdAt: -1 });
-ConsultationSchema.index({ status: 1, scheduledTime: 1 });
 
 module.exports = mongoose.model('Consultation', ConsultationSchema); 

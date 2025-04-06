@@ -1,0 +1,39 @@
+// 主题颜色
+$primary-color: #3498db;
+$secondary-color: #2ecc71;
+$accent-color: #f39c12;
+$dark-color: #2c3e50;
+$light-color: #ecf0f1;
+
+// 文本颜色
+$text-primary: #333333;
+$text-secondary: #666666;
+$text-light: #999999;
+
+// 状态颜色
+$success-color: #2ecc71;
+$warning-color: #f39c12;
+$error-color: #e74c3c;
+$info-color: #3498db;
+
+// 边框和阴影
+$border-radius: 4px;
+$box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+
+// 布局尺寸
+$header-height: 60px;
+$sidebar-width: 240px;
+$container-padding: 16px;
+
+// 字体
+$font-family: 'Helvetica Neue', Arial, sans-serif;
+$font-size-base: 14px;
+$font-size-small: 12px;
+$font-size-large: 16px;
+$font-size-xlarge: 18px;
+$font-size-xxlarge: 24px;
+
+// 断点
+$mobile: 768px;
+$tablet: 992px;
+$desktop: 1200px;
