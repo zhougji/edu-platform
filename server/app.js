@@ -39,6 +39,9 @@ app.use(bodyParser.urlencoded({ extended: true }));
 const uploadDir = process.env.UPLOAD_DIR || 'uploads';
 app.use(`/${uploadDir}`, express.static(path.join(__dirname, uploadDir)));
 
+// 静态文件服务 - 添加在现有的静态文件服务配置之后
+app.use(express.static(path.join(__dirname, '../public')));
+
 // 连接MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/edu-platform', {
     useNewUrlParser: true,
@@ -55,6 +58,53 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/resources', require('./routes/resources'));
 app.use('/api/consultations', require('./routes/consultations'));
 app.use('/api/ai-learning', require('./routes/ai-learning'));
+
+// 主页路由 - 添加在API路由之前
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+// 学生登录/注册路由
+app.get('/student/:action', (req, res) => {
+    const { action } = req.params;
+
+    if (action === 'login') {
+        // 重定向到学生登录页面或前端路由
+        res.redirect('/student-portal/login');
+    } else if (action === 'register') {
+        // 重定向到学生注册页面或前端路由
+        res.redirect('/student-portal/register');
+    } else {
+        res.status(404).send('页面不存在');
+    }
+});
+
+// 教师登录/注册路由
+app.get('/teacher/:action', (req, res) => {
+    const { action } = req.params;
+
+    if (action === 'login') {
+        // 重定向到教师登录页面或前端路由
+        res.redirect('/teacher-portal/login');
+    } else if (action === 'register') {
+        // 重定向到教师注册页面或前端路由
+        res.redirect('/teacher-portal/register');
+    } else {
+        res.status(404).send('页面不存在');
+    }
+});
+
+// 学生门户路由
+app.use('/student-portal', express.static(path.join(__dirname, '../student-portal')));
+app.get('/student-portal/*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../student-portal/index.html'));
+});
+
+// 教师门户路由
+app.use('/teacher-portal', express.static(path.join(__dirname, '../teacher-portal')));
+app.get('/teacher-portal/*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../teacher-portal/index.html'));
+});
 
 // API根路径信息
 app.get('/api', (req, res) => {

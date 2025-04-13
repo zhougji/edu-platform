@@ -767,4 +767,28 @@ router.post('/teacher/verify', protect, async (req, res) => {
     }
 });
 
+// 学生登录
+router.post('/student/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        // 验证学生身份
+        // ...
+        res.json({ success: true, token: "学生令牌", user: studentData });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+});
+
+// 教师登录
+router.post('/teacher/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        // 验证教师身份
+        // ...
+        res.json({ success: true, token: "教师令牌", user: teacherData });
+    } catch (error) {
+        res.status(400).json({ success: false, message: error.message });
+    }
+});
+
 module.exports = router; 
