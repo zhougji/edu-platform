@@ -1,0 +1,73 @@
+[
+    {
+        "id": "res001",
+        "title": "Vue.js 官方文档",
+        "description": "学习 Vue.js 最权威的资源，包含教程、API 参考和示例。",
+        "url": "https://cn.vuejs.org/",
+        "type": "documentation",
+        "tags": [
+            "Vue",
+            "JavaScript",
+            "Frontend"
+        ],
+        "addedBy": "system",
+        "createdAt": "2023-10-26T10:00:00Z"
+    },
+    {
+        "id": "res002",
+        "title": "Element UI 组件库",
+        "description": "一套为开发者、设计师和产品经理准备的基于 Vue 2.0 的桌面端组件库。",
+        "url": "https://element.eleme.cn/#/zh-CN",
+        "type": "library",
+        "tags": [
+            "Vue",
+            "UI",
+            "Component Library"
+        ],
+        "addedBy": "system",
+        "createdAt": "2023-10-26T10:05:00Z"
+    },
+    {
+        "id": "res003",
+        "title": "MDN Web Docs (Mozilla)",
+        "description": "学习 Web 开发的权威参考资料，涵盖 HTML, CSS, JavaScript 等。",
+        "url": "https://developer.mozilla.org/zh-CN/docs/Web",
+        "type": "documentation",
+        "tags": [
+            "HTML",
+            "CSS",
+            "JavaScript",
+            "Web Standards"
+        ],
+        "addedBy": "system",
+        "createdAt": "2023-10-26T10:10:00Z"
+    },
+    {
+        "id": "res004",
+        "title": "Node.js 官方文档",
+        "description": "学习 Node.js 事件驱动、非阻塞I/O模型的 JavaScript 运行时环境。",
+        "url": "https://nodejs.org/zh-cn/docs/",
+        "type": "documentation",
+        "tags": [
+            "Node.js",
+            "JavaScript",
+            "Backend"
+        ],
+        "addedBy": "system",
+        "createdAt": "2023-10-26T10:15:00Z"
+    },
+    {
+        "id": "res005",
+        "title": "Khan Academy - 免费在线课程",
+        "description": "提供数学、科学、计算机编程、历史、艺术史、经济学等练习习题、教学视频和个性化学习面板。",
+        "url": "https://www.khanacademy.org/",
+        "type": "platform",
+        "tags": [
+            "Education",
+            "Online Learning",
+            "Free"
+        ],
+        "addedBy": "system",
+        "createdAt": "2023-10-26T10:20:00Z"
+    }
+]

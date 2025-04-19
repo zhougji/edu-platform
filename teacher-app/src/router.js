@@ -1,62 +1,84 @@
-import { createRouter, createWebHistory } from 'vue-router'
-import Dashboard from './components/Dashboard.vue'
-import ResourceManagement from './components/ResourceManagement.vue'
-import ConsultationRequests from './components/ConsultationRequests.vue'
-import ActiveConsultations from './components/ActiveConsultations.vue'
-import TeacherProfile from './components/TeacherProfile.vue'
-import Login from './components/Login.vue'
+import Vue from 'vue'
+import Router from 'vue-router'
+
+// Import Views
+// const Login = () => import('./views/Login.vue')
+// const Register = () => import('./views/Register.vue')
+const TeacherHome = () => import('./views/Home.vue')
+const Resources = () => import('./views/Resources.vue')
+const Consultations = () => import('./views/Consultations.vue')
+const Profile = () => import('./views/Profile.vue')
+
+Vue.use(Router)
 
 const routes = [
+    // --- Commented out Authentication Routes --- 
+    // {
+    //     path: '/login',
+    //     name: 'Login',
+    //     component: Login,
+    //     meta: { requiresAuth: false } // Or a specific layout for auth
+    // },
+    // {
+    //     path: '/register',
+    //     name: 'Register',
+    //     component: Register,
+    //     meta: { requiresAuth: false }
+    // },
+
+    // --- Logged-in Teacher Routes --- 
     {
-        path: '/',
-        name: 'Dashboard',
-        component: Dashboard,
-        meta: { requiresAuth: true }
+        path: '/home', // Default route
+        name: 'TeacherHome',
+        component: TeacherHome,
+        meta: { requiresAuth: false } // No longer requires auth
+    },
+    {
+        path: '/', // Redirect root to home
+        redirect: '/home'
     },
     {
         path: '/resources',
-        name: 'ResourceManagement',
-        component: ResourceManagement,
-        meta: { requiresAuth: true }
+        name: 'Resources',
+        component: Resources,
+        meta: { requiresAuth: false } // No longer requires auth
     },
     {
-        path: '/consultation-requests',
-        name: 'ConsultationRequests',
-        component: ConsultationRequests,
-        meta: { requiresAuth: true }
-    },
-    {
-        path: '/active-consultations',
-        name: 'ActiveConsultations',
-        component: ActiveConsultations,
-        meta: { requiresAuth: true }
+        path: '/consultations',
+        name: 'Consultations',
+        component: Consultations,
+        meta: { requiresAuth: false } // No longer requires auth
     },
     {
         path: '/profile',
-        name: 'TeacherProfile',
-        component: TeacherProfile,
-        meta: { requiresAuth: true }
+        name: 'Profile',
+        component: Profile,
+        meta: { requiresAuth: false } // No longer requires auth
     },
-    {
-        path: '/login',
-        name: 'Login',
-        component: Login
-    }
+
+    // Catch-all route
+    { path: '*', redirect: '/home' }
 ]
 
-const router = createRouter({
-    history: createWebHistory(),
+const router = new Router({
+    mode: 'history',
+    base: process.env.BASE_URL || '/teacher-app/',
     routes
 })
 
+// Navigation Guard (Disabled)
 router.beforeEach((to, from, next) => {
-    const isAuthenticated = localStorage.getItem('teacherToken')
-
-    if (to.matched.some(record => record.meta.requiresAuth) && !isAuthenticated) {
-        next('/login')
-    } else {
-        next()
-    }
+    // const token = localStorage.getItem('teacherToken')
+    // const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+    //
+    // if (requiresAuth && !token) {
+    //     next({ name: 'Login' })
+    // } else if ((to.name === 'Login' || to.name === 'Register') && token) {
+    //     next({ name: 'TeacherHome' })
+    // } else {
+    //     next()
+    // }
+    next(); // Always allow navigation
 })
 
-export default router
+export default router 

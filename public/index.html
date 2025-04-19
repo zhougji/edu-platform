@@ -1,192 +1,775 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-cn">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>启明隅 - 智慧教育平台</title>
-    <link rel="stylesheet" href="css/main.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@8/swiper-bundle.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- 设置字符编码为 UTF-8 -->
+  <meta charset="utf-8" />
+  <!-- 设置视口以适配移动设备 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- 引入自定义样式文件 -->
+  <link rel="stylesheet" href="style.css" />
+  <!-- 评论卡片样式 -->
+  <style>
+    .testimonial-card {
+      padding: 30px;
+      margin-bottom: 30px;
+      border-radius: 15px;
+      background: white;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+      transition: all 0.3s ease;
+      height: 100%;
+      position: relative;
+      border: 1px solid rgba(0, 0, 0, 0.05);
+    }
+
+    .testimonial-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    }
+
+    .quote-icon {
+      font-size: 2.5rem;
+      color: #1865f2;
+      opacity: 0.15;
+      position: absolute;
+      top: 15px;
+      left: 20px;
+    }
+
+    .avatar {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 15px;
+      border: 3px solid #1865f2;
+    }
+
+    .badge-custom {
+      display: inline-block;
+      padding: 4px 12px;
+      background: #1865f2;
+      color: white;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      margin-left: 10px;
+      font-weight: 500;
+    }
+
+    .testimonial-section {
+      background-color: #f8f9fa;
+      padding: 80px 0;
+      margin: 60px 0;
+    }
+
+    .testimonial-header {
+      text-align: center;
+      margin-bottom: 50px;
+    }
+
+    .testimonial-header h2 {
+      font-size: 2.5rem;
+      margin-bottom: 20px;
+      color: #2d3436;
+    }
+
+    .testimonial-header p {
+      color: #636e72;
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .pagination {
+      justify-content: center;
+      margin-top: 40px;
+    }
+
+    .page-link {
+      color: #1865f2;
+      border: none;
+      padding: 8px 16px;
+      margin: 0 5px;
+      border-radius: 8px;
+    }
+
+    .page-item.active .page-link {
+      background-color: #1865f2;
+      border-color: #1865f2;
+    }
+
+    .quote-text {
+      font-size: 1rem;
+      line-height: 1.6;
+      color: #2d3436;
+      margin: 20px 0;
+    }
+
+    .author-name {
+      font-weight: 600;
+      color: #2d3436;
+      margin-bottom: 5px;
+    }
+
+    /* 图片容器样式 */
+    .img-container {
+      position: relative;
+      overflow: hidden;
+      border-radius: 15px;
+    }
+
+    /* 图片圆角样式 */
+    .img-container img {
+      border-radius: 15px;
+      width: 100%;
+      transition: transform 0.3s ease;
+      display: block;
+    }
+
+    .img-container img:hover {
+      transform: scale(1.12);
+    }
+
+    /* 为什么选择启明隅部分文字与边框距离调整 */
+    .col-md-4 p.fp {
+      padding: 0 10px;
+      margin: 0 auto;
+      max-width: 90%;
+    }
+  </style>
+  <!-- 引入 Bootstrap 样式文件 -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+    integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous" />
+  <!-- 引入媒体查询样式文件 -->
+  <link rel="stylesheet" href="media.css" />
+  <!-- 设置页面标题 -->
+  <title>启明隅</title>
 </head>
 
-<body>
-    <header>
-        <div class="container">
-            <a href="/" class="logo">启明隅</a>
-            <nav>
-                <ul>
-                    <li><a href="#home">首页</a></li>
-                    <li><a href="#about">关于我们</a></li>
-                    <li><a href="#features">平台特色</a></li>
-                    <!-- <li><a href="#contact">联系我们</a></li> -->
+<body class="page-transition">
+  <!-- 页头部分 -->
+  <header>
+    <!-- 导航栏 -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white">
+      <div class="container-fluid">
+        <!-- 移动端导航折叠按钮 -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent"
+          aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="切换导航">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <!-- 折叠导航内容 -->
+        <div class="collapse navbar-collapse" id="navbarSupportedContent">
+          <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+            <!-- 导航品牌：启明隅 -->
+            <a class="navbar-brand" href="#">
+              <img src="image/logo.png" alt="启明隅" height="60" />
+            </a>
+          </ul>
+          <!-- 登录状态区域 -->
+          <div id="auth-section">
+            <!-- 未登录状态 -->
+            <div id="guest-view" class="d-flex align-items-center gap-3">
+              <a class="nav-link text-primary fp" href="#" id="loginButton">登录</a>
+              <button id="registerButton" class="btn btn-primary fp fw-bold">
+                注册
+              </button>
+            </div>
+            <!-- 已登录状态 -->
+            <div id="user-view" class="d-none align-items-center gap-3">
+              <div class="dropdown">
+                <div class="d-flex align-items-center gap-2 dropdown-toggle" type="button" id="userDropdown"
+                  data-bs-toggle="dropdown" aria-expanded="false">
+                  <img src="" alt="用户头像" class="rounded-circle" width="32" height="32" id="user-avatar" />
+                  <div class="d-flex flex-column">
+                    <span class="fp" id="username"></span>
+                    <small class="text-muted fp" id="user-role"></small>
+                  </div>
+                </div>
+                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                  <li><a class="dropdown-item" href="#">个人资料</a></li>
+                  <li><a class="dropdown-item" href="#">设置</a></li>
+                  <li>
+                    <hr class="dropdown-divider" />
+                  </li>
+                  <li>
+                    <button class="dropdown-item" id="logout-btn">
+                      登出
+                    </button>
+                  </li>
                 </ul>
-            </nav>
-            <div class="auth-buttons">
-                <button id="loginBtn" class="btn btn-outline">登录</button>
-                <button id="registerBtn" class="btn btn-primary">注册</button>
+              </div>
             </div>
-            <div class="menu-toggle">
-                <span></span>
-                <span></span>
-                <span></span>
-            </div>
+          </div>
         </div>
-    </header>
+      </div>
+    </nav>
+  </header>
 
-    <section id="home" class="hero">
-        <div class="swiper">
-            <div class="swiper-wrapper">
-                <div class="swiper-slide">
-                    <img src="images/banner1.jpg" alt="智慧教育">
-                    <div class="slide-content">
-                        <h2>启明隅智慧教育平台</h2>
-                        <p>启智之光，照亮每个求知角落</p>
-                    </div>
-                </div>
-                <div class="swiper-slide">
-                    <img src="images/banner2.jpg" alt="个性化学习">
-                    <div class="slide-content">
-                        <h2>个性化学习体验</h2>
-                        <p>选择最适合自己的学习方式</p>
-                    </div>
-                </div>
-                <div class="swiper-slide">
-                    <img src="images/banner3.jpg" alt="师生互动">
-                    <div class="slide-content">
-                        <h2>高效师生互动</h2>
-                        <p>突破时空限制，共创学习空间</p>
-                    </div>
-                </div>
-                <div class="swiper-slide">
-                    <img src="images/banner4.jpg" alt="AI辅助教学">
-                    <div class="slide-content">
-                        <h2>AI辅助教学</h2>
-                        <p>智能答疑，自适应学习</p>
-                    </div>
-                </div>
-            </div>
-            <div class="swiper-pagination"></div>
-            <div class="swiper-button-next"></div>
-            <div class="swiper-button-prev"></div>
+  <script>
+    // 检查登录状态
+    const currentUser = JSON.parse(localStorage.getItem("currentUser"));
+    const guestView = document.getElementById("guest-view");
+    const userView = document.getElementById("user-view");
+
+    if (currentUser) {
+      // 已登录，显示用户信息
+      guestView.classList.add("d-none");
+      userView.classList.remove("d-none");
+
+      document.getElementById("user-avatar").src =
+        currentUser.avatar ||
+        "https://cdn.kastatic.org/images/avatar-default.png";
+      document.getElementById("username").textContent = currentUser.username;
+      document.getElementById("user-role").textContent =
+        currentUser.role === "teacher" ? "老师" : "学生";
+
+      // 登出功能
+      document
+        .getElementById("logout-btn")
+        .addEventListener("click", function (e) {
+          e.preventDefault();
+          localStorage.removeItem("currentUser");
+          localStorage.removeItem("auth_token");
+          window.location.reload();
+        });
+    }
+
+    // 登录按钮功能
+    document.getElementById("loginButton").addEventListener("click", (e) => {
+      e.preventDefault();
+      const user = JSON.parse(localStorage.getItem("currentUser") || "{}");
+
+      // 判断用户是否已登录
+      if (user && user.id) {
+        // 已登录，根据角色跳转到对应的仪表盘
+        if (user.role === "teacher") {
+          window.location.href = "teacher/dashboard.html";
+        } else if (user.role === "student") {
+          window.location.href = "student/dashboard.html";
+        }
+      } else {
+        // 未登录，跳转到登录页
+        window.location.href = "login.html";
+      }
+    });
+
+    // 保留原有的注册按钮功能
+    document
+      .getElementById("registerButton")
+      .addEventListener("click", () => {
+        // 检查用户是否已登录
+        const user = JSON.parse(localStorage.getItem("currentUser") || "{}");
+        if (user && user.id) {
+          // 已登录，根据角色跳转到对应的仪表盘
+          if (user.role === "teacher") {
+            window.location.href = "teacher/dashboard.html";
+          } else if (user.role === "student") {
+            window.location.href = "student/dashboard.html";
+          }
+        } else {
+          // 未登录，跳转到注册页
+          window.location.href = "register.html";
+        }
+      });
+  </script>
+
+  <!-- 主内容部分 -->
+  <div class="content">
+    <div class="container">
+      <div class="row">
+        <!-- 左侧图片 -->
+        <div class="col-md-5">
+          <div class="img-container">
+            <img src="image\about.png" alt="关于我们" />
+          </div>
         </div>
-    </section>
-
-    <section id="about" class="about">
-        <div class="container">
-            <h2 class="section-title">关于启明隅</h2>
-            <div class="content">
-                <div class="image">
-                    <img src="images/about.jpg" alt="关于启明隅">
-                </div>
-                <div class="text">
-                    <p>启明隅是一个创新的智慧教育平台，旨在打造连接师生的桥梁，为教育提供全新的可能性。我们利用前沿技术赋能教育，为学生提供个性化学习体验，为教师提供高效教学工具。</p>
-                    <p>平台名称"启明隅"寓意启迪智慧之光，照亮教育的每一个角落。我们相信，通过科技与教育的深度融合，能够让每一位学习者找到最适合自己的学习方式，让每一位教育者更好地施展自己的教学才华。</p>
-                </div>
+        <!-- 右侧文本内容 -->
+        <div class="col-md-7 d-flex align-items-center">
+          <div class="content">
+            <h1 class="fh my-3">
+              <br />
+              启智之光，照亮每个角落
+            </h1>
+            <h5>
+              <span>在连绵群山的褶皱处，在霓虹未及的屋檐下，总有些星光因遥远而黯淡。启明隅诞生于一个朴素的愿景——运用技术的温度，填平教育的沟壑。</span>
+              <span>我们相信，每个孩子都值得被知识平等照耀，无论他出生在繁华都市，还是群山之巅。</span>
+            </h5>
+            <!-- 按钮组 -->
+            <div class="d-flex w-100 justify-content-between">
+              <button id="studentButton" class="btn btn-primary fp fw-bold px-5" style="min-width: 200px">
+                学生
+              </button>
+              <button id="teacherButton" class="btn btn-primary px-5" style="min-width: 200px">
+                老师
+              </button>
             </div>
+          </div>
         </div>
-    </section>
+      </div>
 
-    <section id="features" class="features">
-        <div class="container">
-            <h2 class="section-title">平台特色</h2>
-            <div class="feature-grid">
-                <div class="feature-card">
-                    <div class="icon">
-                        <img src="images/icons/personalized.svg" alt="个性化学习">
-                    </div>
-                    <h3>个性化学习</h3>
-                    <p>根据学生的学习风格和进度，智能推荐适合的学习内容和方法。</p>
-                </div>
-                <div class="feature-card">
-                    <div class="icon">
-                        <img src="images/icons/ai.svg" alt="AI辅助教学">
-                    </div>
-                    <h3>AI辅助教学</h3>
-                    <p>运用人工智能技术，提供智能答疑和自适应学习指导。</p>
-                </div>
-                <div class="feature-card">
-                    <div class="icon">
-                        <img src="images/icons/collaboration.svg" alt="协作互动">
-                    </div>
-                    <h3>协作互动</h3>
-                    <p>提供丰富的互动工具，促进师生之间的有效沟通和协作。</p>
-                </div>
-                <div class="feature-card">
-                    <div class="icon">
-                        <img src="images/icons/analytics.svg" alt="学习分析">
-                    </div>
-                    <h3>学习分析</h3>
-                    <p>全面记录学习数据，提供详细的学习报告和进步轨迹。</p>
-                </div>
-            </div>
+      <!-- 手风琴组件 -->
+      <div class="row my-5 bg-light p-5">
+        <div class="col-12 text-center mb-4">
+          <p class="fp text-muted fs-5">探索我们丰富多样的课程内容，开启你的学习之旅</p>
         </div>
-    </section>
-
-    <!-- <footer>
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-logo">
-                    <div class="logo">启明隅</div>
-                    <p>连接知识，启迪未来</p>
-                </div>
-                <div class="footer-links">
-                    <h3>快速链接</h3>
-                    <ul>
-                        <li><a href="#home">首页</a></li>
-                        <li><a href="#about">关于我们</a></li>
-                        <li><a href="#features">平台特色</a></li>
-                        <li><a href="#contact">联系我们</a></li>
-                    </ul>
-                </div>
-                <div class="footer-contact">
-                    <h3>联系方式</h3>
-                    <p>邮箱: contact@qimingyu.xyz</p>
-                    <p>电话: +86 10-XXXX-XXXX</p>
-                    <div class="social-icons">
-                        <a href="#" class="social-icon">微信</a>
-                        <a href="#" class="social-icon">微博</a>
-                    </div>
-                </div>
-            </div>
-            <div class="copyright">
-                <p>&copy; 2023 启明隅教育平台. 保留所有权利.</p>
-            </div>
-        </div>
-    </footer> -->
-
-    <!-- 角色选择弹窗 -->
-    <div id="roleModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2 id="modalTitle">选择您的身份</h2>
-            <div class="role-options">
-                <button id="studentBtn" class="role-btn">
-                    <img src="images/icons/student.svg" alt="学生">
-                    <span>学生入口</span>
+        <div class="col-md-6">
+          <div class="accordion accordion-flush" id="accordionFlushExample">
+            <!-- 手风琴项 1 -->
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="flush-headingOne">
+                <button class="accordion-button collapsed bg-light fh fw-bold fs-5" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#flush-collapseOne" aria-expanded="true"
+                  aria-controls="flush-collapseOne">
+                  <img src="https://cdn.kastatic.org/genfiles/topic-icons/icons/math.png-444b34-128c.png" width="40"
+                    class="rounded rounded-circle me-2" alt="" />
+                  数学
                 </button>
-                <button id="teacherBtn" class="role-btn">
-                    <img src="images/icons/teacher.svg" alt="教师">
-                    <span>教师入口</span>
-                </button>
+              </h2>
+              <div id="flush-collapseOne" class="accordion-collapse collapse show" aria-labelledby="flush-headingOne"
+                data-bs-parent="#accordionFlushExample">
+                <div class="accordion-body bg-light">
+                  <ul class="nav-item">
+                    <li>
+                      <a href="video.html?subject=math&level=primary" class="nav-link text-dark">小学</a>
+                    </li>
+                    <li>
+                      <a href="video.html?subject=math&level=middle" class="nav-link text-dark">中学</a>
+                    </li>
+                    <li>
+                      <a href="video.html?subject=math&level=advanced" class="nav-link text-dark">高等数学</a>
+                    </li>
+                    <li>
+                      <a href="video.html?subject=math&level=linear" class="nav-link text-dark">线性代数</a>
+                    </li>
+                    <li>
+                      <a href="video.html?subject=math&level=probability" class="nav-link text-dark">概率论与数理统计</a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
             </div>
+            <!-- 其他手风琴项省略，结构类似 -->
+          </div>
+        </div>
+        <!-- 右侧手风琴 -->
+        <div class="col-md-6">
+          <div class="accordion accordion-flush" id="accordionFlushExample">
+            <!-- 手风琴项 8 -->
+            <div class="accordion-item">
+              <h2 class="accordion-header" id="flush-headingeight">
+                <button class="accordion-button collapsed bg-light fh fw-bold fs-5" type="button"
+                  data-bs-toggle="collapse" data-bs-target="#flush-collapseeight" aria-expanded="true"
+                  aria-controls="flush-collapseeight">
+                  <img src="image/science_green.png-4ca7bf-128c.png" width="40" class="rounded rounded-circle me-2"
+                    alt="" />
+                  科学
+                </button>
+              </h2>
+              <div id="flush-collapseeight" class="accordion-collapse collapse show"
+                aria-labelledby="flush-headingeight" data-bs-parent="#accordionFlushExample">
+                <div class="accordion-body bg-light">
+                  <ul class="nav-item">
+                    <li>
+                      <a href="video.html?subject=biology&level=basic" class="nav-link text-dark">生物</a>
+                    </li>
+                    <li>
+                      <a href="video.html?subject=chemistry&level=basic" class="nav-link text-dark">化学</a>
+                    </li>
+                    <li>
+                      <a href="video.html?subject=physics&level=basic" class="nav-link text-dark">物理</a>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <!-- 其他手风琴项省略，结构类似 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 为什么选择启明隅 -->
+      <div class="row my-5 justify-content-space-evenly">
+        <h1 class="fp text-center mb-5">为什么选择启明隅</h1>
+        <!-- 个性化学习 -->
+        <div class="col-md-4">
+          <div class="icon-container">
+            <img src="https://cdn.kastatic.org/images/lohp/personalized_learning_icon.png" class="d-block m-auto"
+              width="100" alt="个性化学习" />
+          </div>
+          <h3 class="pb-2 fh text-center">个性化学习</h3>
+          <p class="fp text-center">
+            学生可以按照自己的节奏练习，先填补知识空白，然后加速学习。
+          </p>
+        </div>
+        <!-- 可信内容 -->
+        <div class="col-md-4">
+          <div class="icon-container">
+            <img src="https://cdn.kastatic.org/images/lohp/trusted_content_icon.png" class="d-block m-auto" width="100"
+              alt="可信内容" />
+          </div>
+          <h3 class="pb-2 fh text-center">可信赖的内容</h3>
+          <p class="fp text-center">
+            由专家创建，启明隅的练习和课程涵盖数学、科学等内容。对学习者和老师始终免费。
+          </p>
+        </div>
+        <!-- 老师工具 -->
+        <div class="col-md-4">
+          <div class="icon-container">
+            <img src="https://cdn.kastatic.org/images/lohp/empower_teachers_icon.png" class="d-block m-auto" width="100"
+              alt="老师工具" />
+          </div>
+          <h3 class="pb-2 fh text-center">帮助老师的工具</h3>
+          <p class="fp text-center">
+            通过启明隅，老师可以识别学生理解中的差距，调整教学，并满足每位学生的需求。
+          </p>
+        </div>
+      </div>
+
+      <!-- 启明隅详细介绍 -->
+      <div class="features-section py-5">
+        <div class="container">
+          <div class="row mb-5">
+            <div class="col-12 text-center">
+              <!-- <h2 class="fh mb-4">探索启明隅的优势</h2> -->
+              <p class="fp text-muted">为每一位学习者提供个性化的学习体验</p>
+            </div>
+          </div>
+
+          <div class="row g-4">
+            <!-- 个性化学习路径 -->
+            <div class="col-md-6">
+              <div class="feature-card p-4 bg-light rounded-3 h-100">
+                <div class="d-flex align-items-center mb-3">
+                  <div class="feature-icon me-3">
+                    <img src="image/icons/analytics.svg" width="48" alt="个性化学习" />
+                  </div>
+                  <h3 class="fh mb-0">个性化学习路径</h3>
+                </div>
+                <p class="fp mb-3">根据学习者的水平和进度，自动调整内容难度，确保学习效果最大化。</p>
+                <ul class="list-unstyled fp">
+                  <li class="mb-2">✓ 智能进度跟踪</li>
+                  <li class="mb-2">✓ 自适应难度调整</li>
+                  <li>✓ 个性化学习建议</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- 优质教学资源 -->
+            <div class="col-md-6">
+              <div class="feature-card p-4 bg-light rounded-3 h-100">
+                <div class="d-flex align-items-center mb-3">
+                  <div class="feature-icon me-3">
+                    <img src="image/icons/personalized.svg" width="48" alt="优质内容" />
+                  </div>
+                  <h3 class="fh mb-0">优质教学资源</h3>
+                </div>
+                <p class="fp mb-3">由资深教育专家精心打造的课程内容，确保学习质量。</p>
+                <ul class="list-unstyled fp">
+                  <li class="mb-2">✓ 专业团队制作</li>
+                  <li class="mb-2">✓ 持续更新内容</li>
+                  <li>✓ 多样化学习资料</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- 实时互动反馈 -->
+            <div class="col-md-6">
+              <div class="feature-card p-4 bg-light rounded-3 h-100">
+                <div class="d-flex align-items-center mb-3">
+                  <div class="feature-icon me-3">
+                    <img src="image/icons/collaboration.svg" width="48" alt="互动反馈" />
+                  </div>
+                  <h3 class="fh mb-0">实时互动反馈</h3>
+                </div>
+                <p class="fp mb-3">通过即时反馈和互动练习，帮助学习者更好地理解和掌握知识点。</p>
+                <ul class="list-unstyled fp">
+                  <li class="mb-2">✓ 即时答疑解惑</li>
+                  <li class="mb-2">✓ 互动练习题目</li>
+                  <li>✓ 学习效果追踪</li>
+                </ul>
+              </div>
+            </div>
+
+            <!-- AI辅助教学 -->
+            <div class="col-md-6">
+              <div class="feature-card p-4 bg-light rounded-3 h-100">
+                <div class="d-flex align-items-center mb-3">
+                  <div class="feature-icon me-3">
+                    <img src="image/icons/ai.svg" width="48" alt="AI辅助" />
+                  </div>
+                  <h3 class="fh mb-0">AI辅助教学</h3>
+                </div>
+                <p class="fp mb-3">运用先进的人工智能技术，为每位学习者提供智能化的学习指导。</p>
+                <ul class="list-unstyled fp">
+                  <li class="mb-2">✓ 智能知识图谱</li>
+                  <li class="mb-2">✓ AI助教实时解答</li>
+                  <li>✓ 个性化学习建议</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- 数据统计 -->
+          <div class="row mt-5 text-center">
+            <div class="col-md-4">
+              <div class="stat-card p-4">
+                <h2 class="fh display-4 fw-bold text-primary">98%</h2>
+                <p class="fp">学员学习满意度</p>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="stat-card p-4">
+                <h2 class="fh display-4 fw-bold text-primary">50+</h2>
+                <p class="fp">注册学习用户</p>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="stat-card p-4">
+                <h2 class="fh display-4 fw-bold text-primary">100+</h2>
+                <p class="fp">精品课程数量</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 学生部分 -->
+      <div class="row my-5 align-items-center">
+        <div class="col-md-6">
+          <div class="img-container">
+            <img src="image/pexels-annushka-ahuja-8055832.png" width="90%" alt="学生" />
+          </div>
+        </div>
+        <div class="col-md-5">
+          <h5 class="fh ">学生</h5>
+          <h1 class="fh my-5">在这里，可以学习任何你想学的知识。</h1>
+          <p class="fp">在数学、科学等领域建立深厚、扎实的理解。</p>
+          <a href="login.html" class="btn btn-primary py-2 px-4 fs-5">
+            学生，从这里开始
+          </a>
+        </div>
+      </div>
+
+      <!-- 老师部分 -->
+      <div class="row my-5 align-items-center">
+        <div class="col-md-5">
+          <h5 class="fh">老师</h5>
+          <h1 class="fh my-5">让课堂更有差异化，吸引每位学生。</h1>
+          <p class="fp">
+            我们能帮助老师支持整个课堂。
+          </p>
+          <a href="login.html" class="btn btn-primary py-2 px-4 fs-5">
+            老师，从这里开始
+          </a>
+        </div>
+        <div class="col-md-6">
+          <div class="img-container">
+            <img src="image/pexels-max-fischer-5212695.png" class="d-block m-auto" width="90%" alt="老师"
+              style="margin-left: 20px;" />
+          </div>
+        </div>
+      </div>
+
+      <section class="testimonial-section">
+        <div class="container">
+          <div class="testimonial-header">
+            <h2 class="fh">学员心声</h2>
+            <p class="fp">听听他们的故事，每一个进步都值得被看见</p>
+          </div>
+          <!-- 评论容器 -->
+          <div id="commentContainer">
+            <!-- 第1页 - 学员评价 -->
+            <div class="page page-1">
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="testimonial-card">
+                    <div class="quote-icon">"</div>
+                    <img src="image/avatar/人物-01.png" alt="安丽莉的头像" class="avatar">
+                    <blockquote class="quote-text">
+                      我来自一个贫穷的家庭，一家人挤在一个房间里。以前，我一直害怕学习数学，但是现在因为启明隅我喜欢上了数学。
+                    </blockquote>
+                    <div class="text-end">
+                      <div class="author-name">李诗涵</div>
+                      <div class="badge-custom">五年级学生</div>
+                      <div class="text-muted">2025年2月</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="testimonial-card">
+                    <div class="quote-icon">"</div>
+                    <img src="image/avatar/人物-08.png" alt="张先生头像" class="avatar">
+                    <blockquote class="quote-text">
+                      我基础不好，学物理总是很吃力，公式记不住，题也不会做，对物理完全没信心。多亏启明隅的 AI 辅助教学，智能知识图谱帮我梳理知识点，AI
+                      助教实时解答我的疑问，还会给我个性化学习建议，现在物理不再是我的 "老大难"，我慢慢找到学物理的窍门，开始喜欢这门学科了！
+                    </blockquote>
+                    <div class="text-end">
+                      <div class="author-name">陈宇</div>
+                      <div class="badge-custom">八年级学生</div>
+                      <div class="text-muted">2025年1月</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="testimonial-card">
+                    <div class="quote-icon">"</div>
+                    <img src="image/avatar/人物-12.png" alt="李小姐头像" class="avatar">
+                    <blockquote class="quote-text">
+                      我家在偏远小山村，学校师资有限，化学课总是讲得云里雾里。以前一看到化学实验题就犯愁，感觉根本学不会。但在启明隅，凭借优质教学资源，还有多样化学习资料辅助，现在我对化学越来越感兴趣，成绩也直线上升！
+                    </blockquote>
+                    <div class="text-end">
+                      <div class="author-name">吴俊辉</div>
+                      <div class="badge-custom">九年级学生</div>
+                      <div class="text-muted">2025年4月</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
+            <!-- 引入 Bootstrap 的 JS 文件 -->
+            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+              integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+              crossorigin="anonymous"></script>
+
+            <!-- 初始化下拉菜单 -->
+            <script>
+              document.addEventListener("DOMContentLoaded", function () {
+                // 初始化所有Bootstrap下拉菜单
+                var dropdownElementList = [].slice.call(
+                  document.querySelectorAll(".dropdown-toggle")
+                );
+                dropdownElementList.map(function (dropdownToggleEl) {
+                  return new bootstrap.Dropdown(dropdownToggleEl);
+                });
+
+                // 其他现有代码...
+              });
+            </script>
+            <script>
+              // 获取学生和老师按钮
+              const studentButton = document.getElementById("studentButton");
+              const teacherButton = document.getElementById("teacherButton");
+
+              // 添加学生按钮点击事件
+              studentButton.addEventListener("click", () => {
+                // 检查是否已登录
+                const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                if (user && user.id) {
+                  // 已登录用户，检查角色
+                  if (user.role === 'student') {
+                    window.location.href = "student/dashboard.html";
+                  } else if (user.role === 'teacher') {
+                    // 如果是教师角色，则引导到教师面板
+                    window.location.href = "teacher/dashboard.html";
+                  }
+                } else {
+                  // 未登录，跳转到学生登录页
+                  window.location.href = "login.html?role=student";
+                }
+              });
+
+              // 添加老师按钮点击事件
+              teacherButton.addEventListener("click", () => {
+                // 检查是否已登录
+                const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                if (user && user.id) {
+                  // 已登录用户，检查角色
+                  if (user.role === 'teacher') {
+                    window.location.href = "teacher/dashboard.html";
+                  } else if (user.role === 'student') {
+                    // 如果是学生角色，则引导到学生面板
+                    window.location.href = "student/dashboard.html";
+                  }
+                } else {
+                  // 未登录，跳转到教师登录页
+                  window.location.href = "login.html?role=teacher";
+                }
+              });
+            </script>
+          </div>
+
+          <!-- 观察元素是否进入视口 -->
+          <script>
+            const observer = new IntersectionObserver((entries) => {
+              entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                  entry.target.classList.add('active');
+                }
+              });
+            });
+
+            // 观察所有带有 scroll-animation 类的元素
+            document.querySelectorAll('.scroll-animation').forEach((el) => observer.observe(el));
+          </script>
+
+          <script>
+            document.addEventListener('DOMContentLoaded', function () {
+              // 检查用户是否已登录
+              const token = localStorage.getItem('auth_token');
+              const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+              // 如果已登录，自动跳转到对应的面板
+              if (token && user.role) {
+                const currentPath = window.location.pathname;
+                // 主页面或登录页面跳转到对应的面板
+                if (currentPath === '/' || currentPath === '/index.html' || currentPath.includes('login.html')) {
+                  if (user.role === 'teacher') {
+                    window.location.href = 'teacher/dashboard.html';
+                  } else if (user.role === 'student') {
+                    window.location.href = 'student/dashboard.html';
+                  }
+                }
+              }
+
+              // 更新导航栏登录状态显示
+              updateAuthDisplay();
+            });
+
+            function updateAuthDisplay() {
+              const token = localStorage.getItem('auth_token');
+              const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+              const guestView = document.getElementById('guest-view');
+              const userView = document.getElementById('user-view');
+
+              if (token && user.id) {
+                // 已登录状态
+                guestView.classList.add('d-none');
+                userView.classList.remove('d-none');
+                userView.classList.add('d-flex');
+
+                // 更新用户信息
+                document.getElementById('username').textContent = user.name || '用户';
+                document.getElementById('user-role').textContent =
+                  user.role === 'teacher' ? '教师' : '学生';
+
+                // 如果有头像则显示
+                if (user.avatar) {
+                  document.getElementById('user-avatar').src = user.avatar;
+                } else {
+                  document.getElementById('user-avatar').src = 'image/default-avatar.png';
+                }
+              } else {
+                // 未登录状态
+                guestView.classList.remove('d-none');
+                userView.classList.add('d-none');
+                userView.classList.remove('d-flex');
+              }
+            }
+
+            // 登出功能
+            document.getElementById('logout-btn')?.addEventListener('click', function () {
+              localStorage.removeItem('auth_token');
+              localStorage.removeItem('currentUser');
+              window.location.href = 'index.html';
+            });
+          </script>
         </div>
     </div>
-
-    <!-- 移动端菜单 -->
-    <div id="mobileMenu" class="mobile-menu">
-        <ul>
-            <li><a href="#home">首页</a></li>
-            <li><a href="#about">关于我们</a></li>
-            <li><a href="#features">平台特色</a></li>
-            <li><a href="#contact">联系我们</a></li>
-            <li><a href="#" id="mobileLoginBtn">登录</a></li>
-            <li><a href="#" id="mobileRegisterBtn">注册</a></li>
-        </ul>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/swiper@8/swiper-bundle.min.js"></script>
-    <script src="js/script.js"></script>
+  </div>
+  </div>
 </body>
 
 </html>

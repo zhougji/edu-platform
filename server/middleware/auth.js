@@ -1,101 +1,100 @@
 const jwt = require('jsonwebtoken');
-const config = require('../config/config');
-const User = require('../models/User');
+const userStore = require('../utils/tempFileUserStore');
+const dotenv = require('dotenv');
 
-// 从环境变量获取JWT密钥
-const JWT_SECRET = process.env.JWT_SECRET;
+// 加载环境变量
+dotenv.config();
+
+// JWT secret 从环境变量中获取
+const JWT_SECRET = process.env.JWT_SECRET || 'your_jwt_secret';
 
 /**
- * 保护路由 - 验证用户令牌并添加用户身份
+ * 保护路由的中间件
+ * 验证 JWT token 并将用户信息添加到请求对象
  */
-const auth = async (req, res, next) => {
+exports.protect = async (req, res, next) => {
+    let token;
+
+    // 从 headers 中获取 token
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        token = req.headers.authorization.split(' ')[1];
+    }
+
+    // 检查 token 是否存在
+    if (!token) {
+        return res.status(401).json({
+            success: false,
+            message: '未授权访问，请先登录'
+        });
+    }
+
     try {
-        // 从请求头获取token
-        const token = req.header('Authorization').replace('Bearer ', '');
-        // 验证token
-        const decoded = jwt.verify(token, config.JWT_SECRET);
-        // 查找对应用户
-        const user = await User.findOne({ _id: decoded._id, 'tokens.token': token });
+        // 验证 token
+        const decoded = jwt.verify(token, JWT_SECRET);
+
+        // 获取用户信息
+        const user = await userStore.findUserById(decoded.id);
 
         if (!user) {
-            throw new Error();
+            return res.status(401).json({
+                success: false,
+                message: '用户不存在或已被删除'
+            });
         }
 
-        // 将用户和token信息存储到请求对象，供后续路由处理器使用
+        // 检查 token 是否在用户的有效 token 列表中
+        const isValid = await userStore.isValidToken(user.id, token);
+        if (!isValid) {
+            return res.status(401).json({
+                success: false,
+                message: 'Token 已失效，请重新登录'
+            });
+        }
+
+        // 将用户信息和 token 添加到请求对象
+        // 从用户对象中移除敏感信息
+        const { password, tokens, ...userWithoutSensitiveInfo } = user;
+        req.user = userWithoutSensitiveInfo;
         req.token = token;
-        req.user = user;
         next();
+
     } catch (error) {
-        res.status(401).send({ error: '请先登录' });
+        console.error('Token 验证失败:', error);
+        // 区分不同的 JWT 错误
+        if (error.name === 'JsonWebTokenError') {
+            return res.status(401).json({ success: false, message: '无效的Token' });
+        } else if (error.name === 'TokenExpiredError') {
+            return res.status(401).json({ success: false, message: 'Token已过期' });
+        } else {
+            return res.status(401).json({
+                success: false,
+                message: '身份验证失败，请重新登录'
+            });
+        }
     }
 };
 
 /**
- * 授权特定角色访问
+ * 授权中间件
+ * 检查用户是否具有指定的角色
+ * @param {...string} roles - 允许访问的角色列表
  */
-const checkRole = (role) => {
+exports.authorize = (...roles) => {
     return (req, res, next) => {
-        if (req.user.role !== role) {
-            return res.status(403).send({ error: '无权访问此资源' });
+        // protect 中间件应该已经运行，并将 user 信息附加到 req
+        if (!req.user || !req.user.role) {
+            return res.status(403).json({
+                success: false,
+                message: '用户角色信息缺失，无法授权'
+            });
+        }
+
+        if (!roles.includes(req.user.role)) {
+            return res.status(403).json({
+                success: false,
+                message: `角色 (${req.user.role}) 未授权访问此路由`
+            });
         }
         next();
     };
-};
-
-/**
- * 验证用户是否已验证邮箱
- */
-const verifiedOnly = (req, res, next) => {
-    if (!req.user.isEmailVerified) {
-        return res.status(403).json({
-            success: false,
-            message: '请先验证您的邮箱后再访问此资源'
-        });
-    }
-    next();
-};
-
-/**
- * 生成JWT令牌
- */
-const generateToken = (userId) => {
-    return jwt.sign({ id: userId }, JWT_SECRET, {
-        expiresIn: process.env.JWT_EXPIRE || '7d'
-    });
-};
-
-/**
- * 限制请求速率（简单实现）
- */
-const requestCounts = {};
-const REQUEST_WINDOW = 60 * 1000; // 1分钟时间窗口
-const MAX_REQUESTS = 60; // 每个IP每分钟最大请求数
-
-const rateLimiter = (req, res, next) => {
-    const ip = req.ip;
-    const now = Date.now();
-
-    // 初始化或清理过期记录
-    if (!requestCounts[ip] || now - requestCounts[ip].windowStart > REQUEST_WINDOW) {
-        requestCounts[ip] = {
-            count: 1,
-            windowStart: now
-        };
-        return next();
-    }
-
-    // 增加计数
-    requestCounts[ip].count++;
-
-    // 检查是否超过限制
-    if (requestCounts[ip].count > MAX_REQUESTS) {
-        return res.status(429).json({
-            success: false,
-            message: '请求过于频繁，请稍后再试'
-        });
-    }
-
-    next();
-};
-
-module.exports = { auth, checkRole, verifiedOnly, generateToken, rateLimiter }; 
+}; 

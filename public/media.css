@@ -1,0 +1,57 @@
+/* 视频缓冲状态样式 */
+#videoLoading .text-danger {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+#videoLoading .text-warning {
+    color: #ffc107;
+    font-weight: bold;
+}
+
+/* 缓冲进度条样式 */
+#bufferProgress {
+    transition: width 0.3s ease;
+}
+
+/* 响应式样式 */
+@media (max-width: 768px) {
+    .container {
+        padding: 0px 5% 0px 5%;
+    }
+    
+    .video-controls {
+        flex-direction: column;
+        gap: 10px !important;
+    }
+    
+    .video-controls .btn-group {
+        width: 100%;
+    }
+    
+    .video-controls button {
+        width: 100%;
+    }
+    
+    #courseList {
+        margin-top: 20px;
+    }
+    
+    .breadcrumb {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .navbar-brand {
+        font-size: 1rem;
+    }
+    
+    .video-player {
+        margin-bottom: 15px;
+    }
+    
+    .ka-card {
+        padding: 15px;
+    }
+}

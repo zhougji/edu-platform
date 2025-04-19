@@ -1,228 +1,204 @@
 <template>
-  <div class="app-container">
-    <el-container v-if="isLoggedIn">
-      <el-aside width="250px" class="sidebar">
-        <div class="logo">
-          <h2>教师资源平台</h2>
-        </div>
-        <el-menu
-          :router="true"
-          default-active="/"
-          class="el-menu-vertical"
-          background-color="#001529"
-          text-color="#fff"
-          active-text-color="#409EFF">
-          <el-menu-item index="/">
-            <el-icon><i class="el-icon-s-home"></i></el-icon>
-            <span>控制台</span>
-          </el-menu-item>
-          <el-menu-item index="/resources">
-            <el-icon><i class="el-icon-folder-opened"></i></el-icon>
-            <span>资源管理</span>
-          </el-menu-item>
-          <el-menu-item index="/consultation-requests">
-            <el-icon><i class="el-icon-message"></i></el-icon>
-            <span>咨询请求</span>
-            <el-badge :value="pendingConsultationCount" class="consultation-badge" :hidden="!pendingConsultationCount" />
-          </el-menu-item>
-          <el-menu-item index="/active-consultations">
-            <el-icon><i class="el-icon-chat-line-round"></i></el-icon>
-            <span>进行中咨询</span>
-            <el-badge :value="activeConsultationCount" class="consultation-badge" :hidden="!activeConsultationCount" />
-          </el-menu-item>
-          <el-menu-item index="/profile">
-            <el-icon><i class="el-icon-user"></i></el-icon>
-            <span>个人中心</span>
-          </el-menu-item>
-        </el-menu>
-      </el-aside>
-      
-      <el-container class="main-container">
-        <el-header class="header">
-          <div class="header-left">
-            <h3>{{ getPageTitle }}</h3>
-          </div>
-          <div class="header-right">
-            <el-dropdown trigger="click" @command="handleCommand">
-              <span class="el-dropdown-link">
-                {{ teacherName }} <i class="el-icon-arrow-down el-icon--right"></i>
-              </span>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="profile">个人中心</el-dropdown-item>
-                  <el-dropdown-item command="settings">设置</el-dropdown-item>
-                  <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-          </div>
-        </el-header>
-        
-        <el-main>
-          <router-view />
-        </el-main>
-        
-        <el-footer class="footer">
-          <p>© 2023 教育资源分配系统 - 教师平台</p>
-        </el-footer>
-      </el-container>
-    </el-container>
-    
-    <router-view v-else />
+  <div id="app">
+    <!-- Header (Always visible) -->
+    <el-header class="app-header" height="60px">
+      <el-row type="flex" justify="space-between" align="middle" style="height: 100%;">
+        <!-- Left: Brand Name -->
+        <el-col :span="8" class="header-left">
+          <router-link to="/" class="brand-link">启明隅 <span class="subtitle">教师端</span></router-link>
+        </el-col>
+
+        <!-- Center: Main Navigation -->
+        <el-col :span="8" class="header-center">
+          <el-menu 
+            mode="horizontal" 
+            router 
+            :default-active="activeRoute"
+            background-color="transparent"
+            text-color="#303133"
+            active-text-color="#409EFF"
+            class="header-menu"
+          >
+            <el-menu-item index="/home" title="仪表盘"><i class="el-icon-data-board"></i> 仪表盘</el-menu-item>
+            <el-menu-item index="/resources" title="教学资源"><i class="el-icon-folder-opened"></i> 资源管理</el-menu-item>
+            <el-menu-item index="/consultations" title="在线辅导"><i class="el-icon-chat-line-square"></i> 在线辅导</el-menu-item>
+            <!-- Add other teacher-specific links -->
+          </el-menu>
+        </el-col>
+
+        <!-- Right: Removed User Dropdown -->
+        <el-col :span="8" class="header-right">
+           <!-- User Dropdown Removed -->
+        </el-col>
+      </el-row>
+    </el-header>
+
+    <!-- Main Content Area (Always visible) -->
+    <el-main class="app-main">
+       <router-view/>
+    </el-main>
+
+    <!-- Removed Login/Register View -->
+
+    <!-- Remove Global Snackbar since it uses Vuex -->
   </div>
 </template>
 
 <script>
-import { computed, onMounted } from 'vue'
-import { useStore } from 'vuex'
-import { useRouter } from 'vue-router'
+// Remove Vuex imports
+// import { mapState, mapActions } from 'vuex' 
 
 export default {
   name: 'App',
-  setup() {
-    const store = useStore()
-    const router = useRouter()
-    
-    const isLoggedIn = computed(() => store.getters.isAuthenticated)
-    const teacherName = computed(() => {
-      return store.state.teacher && store.state.teacher.name ? store.state.teacher.name : '教师用户'
-    })
-    const pendingConsultationCount = computed(() => store.getters.pendingConsultationCount)
-    const activeConsultationCount = computed(() => store.getters.activeConsultationCount)
-    
-    const getPageTitle = computed(() => {
-      const routeName = router.currentRoute.value.name
-      const titles = {
-        'Dashboard': '控制台',
-        'ResourceManagement': '资源管理',
-        'ConsultationRequests': '咨询请求',
-        'ActiveConsultations': '进行中咨询',
-        'TeacherProfile': '个人中心'
-      }
-      return titles[routeName] || '教师平台'
-    })
-    
-    const handleCommand = (command) => {
-      if (command === 'logout') {
-        store.dispatch('logout')
-        router.push('/login')
-      } else if (command === 'profile') {
-        router.push('/profile')
-      }
-    }
-    
-    onMounted(() => {
-      if (localStorage.getItem('teacherToken')) {
-        store.dispatch('fetchTeacherProfile')
-        store.dispatch('fetchConsultationRequests')
-        store.dispatch('fetchActiveConsultations')
-      }
-    })
-    
+  data() {
     return {
-      isLoggedIn,
-      teacherName,
-      pendingConsultationCount,
-      activeConsultationCount,
-      getPageTitle,
-      handleCommand
+       // defaultAvatar: 'path/to/default/teacher/avatar.png' // Removed
+    }
+  },
+  computed: {
+    // Removed Vuex mapState
+    activeRoute() {
+      // Logic to determine active menu item based on route
+      if (this.$route.path.startsWith('/resources')) return '/resources';
+      if (this.$route.path.startsWith('/consultations')) return '/consultations';
+      if (this.$route.path.startsWith('/profile')) return '/profile';
+      return this.$route.path; // Default to exact path
+    }
+  },
+  methods: {
+    // Removed Vuex mapActions
+  },
+  created() {
+    // Removed checkAuth call
+  },
+  watch: {
+    // Removed checkAuth watcher
+    $route() {
+      // Optional: other logic on route change
     }
   }
 }
 </script>
 
+<style scoped>
+/* Styles should be similar to student app, adjust colors/variables if needed */
+:root {
+  --teacher-primary-color: #409EFF; /* Example: Blue theme for teachers */
+  --teacher-header-bg: #ffffff;
+  --teacher-text-primary: #303133;
+  --teacher-text-secondary: #606266;
+  --teacher-border-color: #e4e7ed;
+  --teacher-font-sans: 'Noto Sans SC', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+}
+
+#app {
+  font-family: var(--teacher-font-sans);
+}
+
+.app-header {
+  background-color: var(--teacher-header-bg);
+  border-bottom: 1px solid var(--teacher-border-color);
+  padding: 0 5%; 
+  position: fixed; 
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+}
+
+.header-left,
+.header-center,
+.header-right {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.header-left {
+  justify-content: flex-start;
+}
+
+.header-center {
+  justify-content: center;
+}
+
+.header-right {
+  justify-content: flex-end;
+}
+
+.brand-link {
+  font-family: var(--teacher-font-sans);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--teacher-primary-color) !important;
+  text-decoration: none;
+}
+
+.subtitle {
+  font-size: 0.8rem;
+  color: var(--teacher-text-secondary);
+  font-weight: normal;
+}
+
+.header-menu.el-menu.el-menu--horizontal {
+  border-bottom: none !important;
+  height: 59px; 
+}
+
+.header-menu .el-menu-item {
+   font-size: 15px;
+   padding: 0 15px;
+   color: var(--teacher-text-primary) !important;
+}
+.header-menu .el-menu-item i {
+  margin-right: 5px;
+}
+
+.header-menu .el-menu-item:hover {
+  background-color: #f5f7fa !important;
+}
+
+.header-menu .el-menu-item.is-active {
+  color: var(--teacher-primary-color) !important;
+  border-bottom: 2px solid var(--teacher-primary-color) !important;
+  background-color: transparent !important;
+}
+
+/* User dropdown styles removed */
+
+.app-main {
+  padding-top: 75px; 
+  min-height: calc(100vh - 60px); 
+  background-color: #f0f2f5;
+  padding-left: 20px; 
+  padding-right: 20px;
+  padding-bottom: 20px;
+}
+
+/* Removed styles for non-logged-in state */
+
+.global-snackbar {
+  position: fixed !important; 
+  top: 80px !important; 
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  width: auto !important;
+  min-width: 300px;
+  max-width: 600px;
+  z-index: 2000 !important;
+}
+</style>
+
 <style>
-* {
+/* Global styles if needed */
+body {
   margin: 0;
   padding: 0;
-  box-sizing: border-box;
-}
-
-body {
-  font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', SimSun, sans-serif;
-  background-color: #f0f2f5;
-}
-
-.app-container {
-  height: 100vh;
-}
-
-.sidebar {
-  background-color: #001529;
-  color: white;
-  height: 100vh;
-  position: fixed;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  overflow-y: auto;
-}
-
-.logo {
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.logo h2 {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: 1px;
-}
-
-.el-menu {
-  border-right: none;
-}
-
-.main-container {
-  margin-left: 250px;
-  min-height: 100vh;
-}
-
-.header {
-  background-color: white;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
-  position: relative;
-  z-index: 10;
-}
-
-.header-left h3 {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.el-dropdown-link {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  color: #409EFF;
+  font-family: 'Noto Sans SC', 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
 .el-main {
-  background-color: #f0f2f5;
-  padding: 20px;
+   padding: 20px; 
 }
-
-.footer {
-  text-align: center;
-  color: #666;
-  font-size: 14px;
-  padding: 15px 0;
-  background-color: white;
-}
-
-.consultation-badge {
-  margin-top: 2px;
-  margin-right: 10px;
-}
-</style>
+</style> 

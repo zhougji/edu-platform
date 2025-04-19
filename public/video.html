@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="style.css">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
+        <link rel="stylesheet" href="media.css">
+        <title>课程视频 - 启明隅</title>
+    </head>
+    <body class="page-transition">
+        <!-- 页头部分 -->
+        <header>
+            <nav class="navbar navbar-expand-lg navbar-light bg-white">
+                <div class="container-fluid">
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="切换导航">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                        <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                            <a class="navbar-brand" href="index.html">
+                                <img src="image/logo.png" alt="启明隅" height="60">
+                            </a>
+                        </ul>
+                        <div id="auth-section">
+                            <div id="guest-view" class="d-flex align-items-center gap-3">
+                                <a class="nav-link text-primary fp" href="login.html">登录</a>
+                                <button id="registerButton" class="btn btn-primary fp fw-bold">注册</button>
+                            </div>
+                            <div id="user-view" class="d-none align-items-center gap-3">
+                                <div class="dropdown">
+                                    <div class="d-flex align-items-center gap-2 dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <img src="" alt="用户头像" class="rounded-circle" width="32" height="32" id="user-avatar">
+                                        <div class="d-flex flex-column">
+                                            <span class="fp" id="username"></span>
+                                            <small class="text-muted fp" id="user-role"></small>
+                                        </div>
+                                    </div>
+                                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                                        <li><a class="dropdown-item" href="#">个人资料</a></li>
+                                        <li><a class="dropdown-item" href="#">设置</a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><button class="dropdown-item" id="logout-btn">登出</button></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <div class="container my-5">
+            <!-- 面包屑导航 -->
+            <nav aria-label="breadcrumb" class="mb-4">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="index.html" class="text-decoration-none">首页</a></li>
+                    <li class="breadcrumb-item" id="subjectBreadcrumb">课程</li>
+                    <li class="breadcrumb-item active" id="levelBreadcrumb" aria-current="page">级别</li>
+                </ol>
+            </nav>
+
+            <div class="row">
+                <!-- 视频播放区域 -->
+                <div class="col-md-8">
+                    <div class="ka-card p-0" style="transform:none!important; box-shadow:none!important; transition:none!important;">
+                        <div class="ratio ratio-16x9">
+                            <video id="videoPlayer" class="w-100" controls>
+                                <!-- 测试视频源（可替换为实际视频） -->
+                                <source src="https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4" type="video/mp4">
+                                <source src="https://sample-videos.com/video123/webm/720/big_buck_bunny_720p_1mb.webm" type="video/webm">
+                                <!-- 备用内容 -->
+                                <div class="alert alert-warning">
+                                    无法加载视频，请尝试以下方法：
+                                    <ul>
+                                        <li>检查网络连接</li>
+                                        <li>尝试使用其他浏览器</li>
+                                        <li>联系管理员</li>
+                                    </ul>
+                                </div>
+                            </video>
+                            <div id="videoLoading" class="alert alert-warning d-none mt-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="spinner-border spinner-border-sm text-warning me-2" role="status">
+                                        <span class="visually-hidden">加载中...</span>
+                                    </div>
+                                    <span id="loadingStatusText">视频加载中，请稍候...</span>
+                                    <div class="progress ms-2" style="width: 100px; height: 5px;">
+                                        <div id="bufferProgress" class="progress-bar bg-warning" role="progressbar" style="width: 0%">
+                                            <span class="visually-hidden">缓冲进度: 0%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="videoError" class="alert alert-danger d-none mt-3">
+                                <button class="btn btn-sm btn-primary float-end" onclick="retryPlayback()">
+                                    重试
+                                </button>
+                                <span id="errorMessage"></span>
+                            </div>
+
+                            <script>
+                                // 视频播放控制器
+                                class VideoPlayerController {
+                                    constructor() {
+                                        this.player = document.getElementById('videoPlayer');
+                                        this.loadingElement = document.getElementById('videoLoading');
+                                        this.errorElement = document.getElementById('videoError');
+                                        this.errorMessage = document.getElementById('errorMessage');
+                                        this.bufferProgress = document.getElementById('bufferProgress');
+                                        this.retryCount = 0;
+                                        this.maxRetries = 3;
+                                        this.lastBufferPercent = 0;
+                                        this.bufferStalledTimer = null;
+                    
+                                        this.initEvents();
+                                        this.initNetworkMonitor();
+                                    }
+                
+                                    initEvents() {
+                                        // 播放状态事件
+                                        this.player.addEventListener('waiting', () => this.showLoading());
+                                        this.player.addEventListener('playing', () => this.hideLoading());
+                                        this.player.addEventListener('error', () => this.handleError());
+                                        this.player.addEventListener('play', () => this.resetRetryCount());
+                                        this.player.addEventListener('progress', () => this.updateBufferStatus());
+                                        this.player.addEventListener('canplay', () => this.hideLoading());
+                    
+                                        // 性能监控
+                                        this.monitorPerformance();
+                                    }
+                
+                                    initNetworkMonitor() {
+                                        window.addEventListener('online', () => {
+                                            if(this.player.error) this.retryPlayback();
+                                        });
+                                        window.addEventListener('offline', () => {
+                                            this.showError('网络已断开，请检查网络连接');
+                                        });
+                                    }
+                
+                                    showLoading() {
+                                        this.loadingElement.classList.remove('d-none');
+                                        this.errorElement.classList.add('d-none');
+                                    }
+                
+                                    hideLoading() {
+                                        this.loadingElement.classList.add('d-none');
+                                    }
+                
+                                    handleError() {
+                                        this.hideLoading();
+                    
+                                        const errorMap = {
+                                            1: {
+                                                message: '视频加载被取消', 
+                                                retryable: false,
+                                                solutions: ['检查网络连接', '刷新页面']
+                                            },
+                                            2: {
+                                                message: navigator.onLine ? '服务器连接失败' : '网络已断开', 
+                                                retryable: true,
+                                                solutions: ['检查网络设置', '尝试使用其他网络']
+                                            },
+                                            3: {
+                                                message: '视频解码错误', 
+                                                retryable: false,
+                                                solutions: ['尝试使用其他浏览器', '更新浏览器']
+                                            },
+                                            4: {
+                                                message: '视频格式不支持', 
+                                                retryable: false,
+                                                solutions: ['联系管理员转换视频格式']
+                                            },
+                                            5: {
+                                                message: '视频编码不受支持', 
+                                                retryable: false,
+                                                solutions: ['安装必要的解码器', '使用推荐浏览器']
+                                            }
+                                        };
+                    
+                                        const error = errorMap[this.player.error.code] || {
+                                            message: '未知错误', 
+                                            retryable: false,
+                                            solutions: ['刷新页面', '联系管理员']
+                                        };
+                                        
+                                        let errorMsg = `视频播放错误: ${error.message}`;
+                                        
+                                        // 添加详细解决方案
+                                        if(error.solutions && error.solutions.length > 0) {
+                                            errorMsg += '<br><br>建议解决方案:';
+                                            errorMsg += '<ul class="mt-2">';
+                                            error.solutions.forEach(solution => {
+                                                errorMsg += `<li>${solution}</li>`;
+                                            });
+                                            errorMsg += '</ul>';
+                                        }
+                                        
+                                        this.showError(errorMsg, error.retryable);
+                                    }
+                                    
+                                    retryPlayback() {
+                                        this.errorElement.classList.add('d-none');
+                                        this.showLoading();
+                                        
+                                        // 先尝试重新加载当前源
+                                        this.player.load();
+                                        
+                                        const playPromise = this.player.play();
+                                        playPromise.catch(e => {
+                                            // 如果重试失败，尝试备用源
+                                            this.tryFallbackSource();
+                                        });
+                                    }
+                                    
+                                    tryFallbackSource() {
+                                        // 检查是否有备用视频源
+                                        const fallbackSources = [
+                                            'https://备用视频源1.mp4',
+                                            'https://备用视频源2.webm'
+                                        ];
+                                        
+                                        let triedSourceIndex = 0;
+                                        
+                                        const tryNextSource = () => {
+                                            if(triedSourceIndex >= fallbackSources.length) {
+                                                this.showError('所有视频源尝试失败，请稍后再试');
+                                                return;
+                                            }
+                                            
+                                            const source = fallbackSources[triedSourceIndex++];
+                                            console.log(`尝试备用视频源: ${source}`);
+                                            
+                                            // 清除现有视频源
+                                            while(this.player.firstChild) {
+                                                this.player.removeChild(this.player.firstChild);
+                                            }
+                                            
+                                            // 添加备用源
+                                            const newSource = document.createElement('source');
+                                            newSource.src = source;
+                                            newSource.type = source.endsWith('.mp4') ? 'video/mp4' : 'video/webm';
+                                            this.player.appendChild(newSource);
+                                            
+                                            // 尝试播放
+                                            this.player.load();
+                                            this.player.play()
+                                                .then(() => {
+                                                    console.log('备用视频源播放成功');
+                                                })
+                                                .catch(e => {
+                                                    console.log('备用视频源播放失败，尝试下一个');
+                                                    tryNextSource();
+                                                });
+                                        };
+                                        
+                                        tryNextSource();
+                                    }
+                
+                                    showError(message, retryable = false) {
+                                        this.errorMessage.textContent = message;
+                                        this.errorElement.classList.remove('d-none');
+                    
+                                        if(retryable && this.retryCount < this.maxRetries) {
+                                            this.errorMessage.textContent += ` (正在尝试第${this.retryCount+1}次重试...)`;
+                                            this.retryCount++;
+                                            setTimeout(() => this.retryPlayback(), 2000);
+                                        } else if(this.retryCount >= this.maxRetries) {
+                                            this.errorMessage.textContent += ' 重试次数已达上限，请尝试：';
+                                            const errorList = document.createElement('ul');
+                                            errorList.innerHTML = `
+                                                <li>检查网络连接</li>
+                                                <li>刷新页面</li>
+                                                <li>联系管理员</li>
+                                            `;
+                                            this.errorMessage.appendChild(errorList);
+                                        }
+                                    }
+                
+                                    resetRetryCount() {
+                                        this.retryCount = 0;
+                                    }
+                
+                                    retryPlayback() {
+                                        this.errorElement.classList.add('d-none');
+                                        this.showLoading();
+                                        this.player.load();
+                    
+                                        const playPromise = this.player.play();
+                                        playPromise.catch(e => {
+                                            this.showError(`重试失败: ${e.message}`);
+                                        });
+                                    }
+                
+                                    updateBufferStatus() {
+                                        if (this.player.buffered.length > 0) {
+                                            const bufferedEnd = this.player.buffered.end(this.player.buffered.length - 1);
+                                            const duration = this.player.duration;
+                        
+                                            if (duration > 0) {
+                                                const percent = (bufferedEnd / duration) * 100;
+                                                this.lastBufferPercent = percent;
+                            
+                                                // 更新缓冲进度显示
+                                                this.bufferProgress.style.width = `${percent}%`;
+                                                this.updateBufferText(percent);
+                            
+                                                // 缓冲停滞检测
+                                                this.checkBufferStall(percent);
+                            
+                                                // 智能播放决策
+                                                this.autoPlayIfReady(percent);
+                                            }
+                                        }
+                                    }
+                
+                                    updateBufferText(percent) {
+                                        const loadingText = document.getElementById('loadingStatusText');
+                                        if (loadingText) {
+                                            loadingText.textContent = `视频缓冲中: ${Math.round(percent)}%`;
+                        
+                                            // 根据缓冲状态设置颜色
+                                            if (percent < 30) {
+                                                loadingText.classList.add('text-danger');
+                                                loadingText.classList.remove('text-warning');
+                                            } else if (percent < 70) {
+                                                loadingText.classList.add('text-warning');
+                                                loadingText.classList.remove('text-danger');
+                                            } else {
+                                                loadingText.classList.remove('text-warning', 'text-danger');
+                                            }
+                                        }
+                                    }
+                
+                                    checkBufferStall(percent) {
+                                        if (this.bufferStalledTimer) {
+                                            clearTimeout(this.bufferStalledTimer);
+                                        }
+                    
+                                        this.bufferStalledTimer = setTimeout(() => {
+                                            if (this.lastBufferPercent === percent && percent < 100) {
+                                                const loadingText = document.getElementById('loadingStatusText');
+                                                loadingText.textContent = `缓冲停滞 (${Math.round(percent)}%)，请检查网络`;
+                                                loadingText.classList.add('text-danger');
+                                            }
+                                        }, 5000);
+                                    }
+                
+                                    autoPlayIfReady(percent) {
+                                        if (percent > 50 && this.player.paused && !this.player.ended) {
+                                            this.player.play().catch(e => {
+                                                if (e.name !== 'AbortError') {
+                                                    this.showError(`自动播放失败: ${e.message}`);
+                                                }
+                                            });
+                                        }
+                                    }
+                
+                                    monitorPerformance() {
+                                        // 性能监控逻辑
+                                        setInterval(() => {
+                                            const metrics = {
+                                                bufferLevel: this.getBufferLevel(),
+                                                fps: this.getFrameRate(),
+                                                droppedFrames: this.getDroppedFrames()
+                                            };
+                                            // 可以根据性能指标调整播放质量
+                                        }, 5000);
+                                    }
+                
+                                    getBufferLevel() {
+                                        // 获取缓冲水平
+                                        return this.player.buffered.length > 0 ? 
+                                            this.player.buffered.end(this.player.buffered.length - 1) - this.player.currentTime : 0;
+                                    }
+                
+                                    getFrameRate() {
+                                        // 获取帧率 (需要浏览器支持)
+                                        return 0;
+                                    }
+                
+                                    getDroppedFrames() {
+                                        // 获取丢帧数 (需要浏览器支持)
+                                        return 0;
+                                    }
+                                }
+            
+                                // 初始化视频播放控制器
+                                const videoController = new VideoPlayerController();
+                            </script>
+                        </div>
+                        <div class="p-4">
+                            <h2 class="fh mb-3" id="videoTitle">课程标题</h2>
+                            <p class="fp text-muted mb-4" id="videoDescription">课程描述</p>
+                            
+                            <div class="d-flex flex-wrap align-items-center gap-3 mb-4 video-controls">
+                                <button class="btn btn-primary" onclick="previousVideo()">上一课</button>
+                                <button class="btn btn-primary" onclick="nextVideo()">下一课</button>
+                                
+                                <button id="playPauseBtn" class="btn btn-primary" onclick="togglePlayPause()">
+                                    <i id="playPauseIcon" class="bi bi-pause-fill"></i>
+                                    <span id="playPauseText" class="visually-hidden">暂停</span>
+                                </button>
+                                
+                                <div class="btn-group">
+                                    <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        播放速度
+                                    </button>
+                                    <ul class="dropdown-menu">
+                                        <li><button class="dropdown-item" onclick="setPlaybackSpeed(0.5)">0.5x</button></li>
+                                        <li><button class="dropdown-item" onclick="setPlaybackSpeed(1)">1.0x</button></li>
+                                        <li><button class="dropdown-item" onclick="setPlaybackSpeed(1.5)">1.5x</button></li>
+                                        <li><button class="dropdown-item" onclick="setPlaybackSpeed(2)">2.0x</button></li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-volume-up"></i>
+                                    <input type="range" class="form-range" min="0" max="1" step="0.1" value="1" 
+                                        id="volumeControl" oninput="setVolume(this.value)">
+                                </div>
+                                
+                                <button class="btn btn-primary" onclick="toggleFullscreen()">
+                                    <i class="bi bi-fullscreen"></i>
+                                </button>
+                            </div>
+                            
+                            <div class="progress mt-2" style="height: 6px; cursor: pointer;" onclick="seekVideo(event)">
+                                <div id="progressBar" class="progress-bar" role="progressbar" style="width: 0%">
+                                    <div class="progress-thumb"></div>
+                                </div>
+                                <div id="bufferBar" class="progress-bar bg-secondary" style="width: 0%; opacity: 0.3;"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small id="currentTime">0:00</small>
+                                <small id="duration">0:00</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- 课程列表 -->
+                <div class="col-md-4">
+                    <div class="ka-card">
+                        <div class="p-4">
+                            <h3 class="fh mb-4">课程目录</h3>
+                            <div class="list-group" id="courseList">
+                                <!-- 课程列表项将通过JavaScript动态添加 -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bootstrap JS -->
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM" crossorigin="anonymous"></script>
+        
+        <!-- 视频播放页面脚本 -->
+        <script>
+            // 键盘快捷键支持
+            document.addEventListener('keydown', function(e) {
+                // 忽略在输入框中的按键
+                if (document.activeElement.tagName === 'INPUT') return;
+                
+                const videoPlayer = document.getElementById('videoPlayer');
+                switch(e.key) {
+                    case ' ':
+                        e.preventDefault();
+                        togglePlayPause();
+                        break;
+                    case 'ArrowLeft':
+                        e.preventDefault();
+                        videoPlayer.currentTime = Math.max(0, videoPlayer.currentTime - 5);
+                        break;
+                    case 'ArrowRight':
+                        e.preventDefault();
+                        videoPlayer.currentTime = Math.min(videoPlayer.duration, videoPlayer.currentTime + 5);
+                        break;
+                    case 'f':
+                    case 'F':
+                        e.preventDefault();
+                        toggleFullscreen();
+                        break;
+                    case 'm':
+                    case 'M':
+                        e.preventDefault();
+                        videoPlayer.muted = !videoPlayer.muted;
+                        updateVolumeUI();
+                        break;
+                    case '0':
+                    case ')':
+                        e.preventDefault();
+                        videoPlayer.currentTime = 0;
+                        break;
+                    case '1':
+                    case '!':
+                        e.preventDefault();
+                        videoPlayer.currentTime = videoPlayer.duration * 0.1;
+                        break;
+                    // 添加2-9数字键跳转...
+                }
+            });
+
+            // 更新音量UI状态
+            function updateVolumeUI() {
+                const videoPlayer = document.getElementById('videoPlayer');
+                const volumeControl = document.getElementById('volumeControl');
+                volumeControl.value = videoPlayer.muted ? 0 : videoPlayer.volume;
+            }
+
+            // 检查登录状态
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const guestView = document.getElementById('guest-view');
+            const userView = document.getElementById('user-view');
+            
+            if (currentUser) {
+                guestView.classList.add('d-none');
+                userView.classList.remove('d-none');
+                
+                document.getElementById('user-avatar').src = currentUser.avatar || 'https://cdn.kastatic.org/images/avatar-default.png';
+                document.getElementById('username').textContent = currentUser.username;
+                document.getElementById('user-role').textContent = currentUser.role === 'teacher' ? '教师' : '学生';
+                
+                document.getElementById('logout-btn').addEventListener('click', function(e) {
+                    e.preventDefault();
+                    localStorage.removeItem('currentUser');
+                    window.location.reload();
+                });
+            }
+
+            // 课程数据库
+            const courseDatabase = {
+                math: {
+                    primary: [
+                        {title: '小学数学基础', description: '学习加减乘除等基本运算', videoUrl: 'video/方程的意义-五年级.mp4'},
+                        {title: '分数入门', description: '理解分数的概念和运算', videoUrl: 'video/分数的加减乘除-五年级.mp4'},
+                        {title: '方程入门', description: '理解一元一次方程的概念和运算', videoUrl: 'video/一元一次方程-五年级.mp4'},
+                    ],
+                    middle: [
+                        {title: '代数基础', description: '学习代数的基本概念', videoUrl: 'path/to/math_middle1.mp4'},
+                        {title: '几何入门', description: '探索几何学的基本原理', videoUrl: 'path/to/math_middle2.mp4'}
+                    ],
+                    advanced: [
+                        {title: '微积分基础', description: '学习导数和积分的基本概念', videoUrl: 'path/to/math_advanced1.mp4'}
+                    ]
+                },
+                physics: {
+                    basic: [
+                        {title: '力学基础', description: '学习牛顿运动定律', videoUrl: 'path/to/physics_basic1.mp4'},
+                        {title: '热学入门', description: '理解温度和热量的概念', videoUrl: 'path/to/physics_basic2.mp4'}
+                    ]
+                },
+                chemistry: {
+                    basic: [
+                        {title: '化学基础', description: '学习元素和化合物的概念', videoUrl: 'path/to/chemistry_basic1.mp4'}
+                    ]
+                },
+                biology: {
+                    basic: [
+                        {title: '细胞生物学', description: '探索细胞的结构和功能', videoUrl: 'path/to/biology_basic1.mp4'}
+                    ]
+                }
+            };
+
+            // 学科和级别的中文映射
+            const subjectNames = {
+                math: '数学',
+                physics: '物理',
+                chemistry: '化学',
+                biology: '生物'
+            };
+
+            const levelNames = {
+                primary: '小学',
+                middle: '中学',
+                advanced: '高等数学',
+                linear: '线性代数',
+                probability: '概率论',
+                mechanics: '力学',
+                thermodynamics: '热学',
+                optics: '光学',
+                electromagnetism: '电磁学',
+                modern: '近代物理',
+                basic: '基础'
+            };
+
+            // 解析URL参数
+            const urlParams = new URLSearchParams(window.location.search);
+            const subject = urlParams.get('subject');
+            const level = urlParams.get('level');
+
+            // 更新面包屑和页面标题
+            const subjectName = subjectNames[subject] || '课程';
+            const levelName = levelNames[level] || '基础';
+            
+            document.getElementById('subjectBreadcrumb').textContent = subjectName;
+            document.getElementById('levelBreadcrumb').textContent = levelName;
+            document.title = `${levelName} - ${subjectName} - 启明隅`;
+
+            // 获取对应课程
+            let courses = [];
+            if (subject && level && courseDatabase[subject] && courseDatabase[subject][level]) {
+                courses = courseDatabase[subject][level];
+            } else {
+                // 默认课程
+                courses = courseDatabase.math.primary;
+            }
+
+            // 当前播放的课程索引
+            let currentCourseIndex = 0;
+
+            // 加载课程列表
+            function loadCourseList() {
+                const courseList = document.getElementById('courseList');
+                courseList.innerHTML = '';
+                
+                courses.forEach((course, index) => {
+                    const listItem = document.createElement('a');
+                    listItem.href = '#';
+                    listItem.className = `list-group-item list-group-item-action ${index === currentCourseIndex ? 'active' : ''}`;
+                    listItem.innerHTML = `
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">${course.title}</h5>
+                        </div>
+                        <p class="mb-1">${course.description}</p>
+                    `;
+                    listItem.onclick = (e) => {
+                        e.preventDefault();
+                        playCourse(index);
+                    };
+                    courseList.appendChild(listItem);
+                });
+            }
+
+            // 播放指定课程
+            function playCourse(index) {
+                currentCourseIndex = index;
+                const course = courses[index];
+                
+                document.getElementById('videoTitle').textContent = course.title;
+                document.getElementById('videoDescription').textContent = course.description;
+                
+                const videoPlayer = document.getElementById('videoPlayer');
+                // 清除现有视频源
+                while(videoPlayer.firstChild) {
+                    videoPlayer.removeChild(videoPlayer.firstChild);
+                }
+                
+                // 添加视频源
+                const source = document.createElement('source');
+                source.src = course.videoUrl;
+                source.type = 'video/mp4';
+                videoPlayer.appendChild(source);
+                
+                // 重新加载视频
+                videoPlayer.load();
+                videoPlayer.play().catch(e => {
+                    document.getElementById('videoError').textContent = 
+                        `视频播放错误: ${e.message}`;
+                    document.getElementById('videoError').classList.remove('d-none');
+                });
+                
+                loadCourseList();
+            }
+
+            // 播放上一课
+            function previousVideo() {
+                if (currentCourseIndex > 0) {
+                    playCourse(currentCourseIndex - 1);
+                }
+            }
+
+            // 播放下一课
+            function nextVideo() {
+                if (currentCourseIndex < courses.length - 1) {
+                    playCourse(currentCourseIndex + 1);
+                }
+            }
+
+            // 播放速度控制
+            function setPlaybackSpeed(speed) {
+                const videoPlayer = document.getElementById('videoPlayer');
+                videoPlayer.playbackRate = speed;
+            }
+
+            // 全屏切换
+            function toggleFullscreen() {
+                const videoPlayer = document.getElementById('videoPlayer');
+                if (!document.fullscreenElement) {
+                    videoPlayer.requestFullscreen().catch(err => {
+                        alert(`全屏错误: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+
+            // 保存播放进度
+            function saveProgress() {
+                const videoPlayer = document.getElementById('videoPlayer');
+                const progress = {
+                    time: videoPlayer.currentTime,
+                    duration: videoPlayer.duration,
+                    courseIndex: currentCourseIndex
+                };
+                localStorage.setItem('videoProgress', JSON.stringify(progress));
+            }
+
+            // 加载保存的进度
+            function loadProgress() {
+                const savedProgress = JSON.parse(localStorage.getItem('videoProgress'));
+                if (savedProgress && savedProgress.courseIndex === currentCourseIndex) {
+                    document.getElementById('videoPlayer').currentTime = savedProgress.time;
+                }
+            }
+
+            // 初始化页面
+            loadCourseList();
+            playCourse(0);
+            
+            // 播放/暂停切换
+            function togglePlayPause() {
+                const videoPlayer = document.getElementById('videoPlayer');
+                const playPauseIcon = document.getElementById('playPauseIcon');
+                const playPauseText = document.getElementById('playPauseText');
+                
+                if (videoPlayer.paused) {
+                    videoPlayer.play();
+                    playPauseIcon.className = 'bi bi-pause-fill text-warning';
+                    playPauseText.textContent = '暂停';
+                } else {
+                    videoPlayer.pause();
+                    playPauseIcon.className = 'bi bi-play-fill text-warning';
+                    playPauseText.textContent = '播放';
+                }
+            }
+            
+            // 音量控制
+            function setVolume(volume) {
+                document.getElementById('videoPlayer').volume = volume;
+            }
+            
+            // 更新进度条和时间显示
+            function updateProgressBar() {
+                const videoPlayer = document.getElementById('videoPlayer');
+                const progressBar = document.getElementById('progressBar');
+                const currentTimeEl = document.getElementById('currentTime');
+                const durationEl = document.getElementById('duration');
+                
+                // 更新进度条
+                const percentage = (videoPlayer.currentTime / videoPlayer.duration) * 100;
+                progressBar.style.width = `${percentage}%`;
+                
+                // 更新时间显示
+                currentTimeEl.textContent = formatTime(videoPlayer.currentTime);
+                if (!isNaN(videoPlayer.duration)) {
+                    durationEl.textContent = formatTime(videoPlayer.duration);
+                }
+            }
+            
+            // 格式化时间为MM:SS
+            function formatTime(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+            }
+            
+            // 点击进度条跳转
+            function seekVideo(event) {
+                const videoPlayer = document.getElementById('videoPlayer');
+                const progressBar = event.currentTarget;
+                const rect = progressBar.getBoundingClientRect();
+                const pos = (event.clientX - rect.left) / rect.width;
+                videoPlayer.currentTime = pos * videoPlayer.duration;
+            }
+            
+            // 初始化拖动功能
+            let isDragging = false;
+            const progressContainer = document.querySelector('.progress');
+            
+            progressContainer.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                seekVideo(e);
+            });
+            
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    seekVideo(e);
+                }
+            });
+            
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+            
+            // 初始化音量
+            document.getElementById('videoPlayer').volume = 1;
+            
+            // 定期保存进度和更新UI
+            setInterval(() => {
+                saveProgress();
+                updateProgressBar();
+            }, 500);
+            
+            // 视频事件监听
+            const videoPlayer = document.getElementById('videoPlayer');
+            videoPlayer.addEventListener('play', () => {
+                loadProgress();
+                document.getElementById('playPauseBtn').innerHTML = '<i class="bi bi-pause-fill"></i>';
+            });
+            
+            videoPlayer.addEventListener('pause', () => {
+                document.getElementById('playPauseBtn').innerHTML = '<i class="bi bi-play-fill"></i>';
+            });
+            
+            videoPlayer.addEventListener('timeupdate', updateProgressBar);
+            
+            // 增强缓冲状态处理
+            let lastBufferPercent = 0;
+            let bufferStalledTimer = null;
+            
+            videoPlayer.addEventListener('progress', function() {
+                if (this.buffered.length > 0) {
+                    const bufferedEnd = this.buffered.end(this.buffered.length - 1);
+                    const duration = this.duration;
+                    if (duration > 0) {
+                        const percent = (bufferedEnd / duration) * 100;
+                        lastBufferPercent = percent;
+                        
+                        // 更新缓冲进度条
+                        const bufferProgress = document.getElementById('bufferProgress');
+                        bufferProgress.style.width = `${percent}%`;
+                        bufferProgress.innerHTML = `<span class="visually-hidden">缓冲进度: ${Math.round(percent)}%</span>`;
+                        
+                        // 更新缓冲状态文本
+                        const loadingText = document.getElementById('loadingStatusText');
+                        if (loadingText) {
+                            loadingText.textContent = `视频缓冲中: ${Math.round(percent)}%`;
+                            
+                            // 根据缓冲状态添加不同样式
+                            if (percent < 30) {
+                                loadingText.classList.add('text-danger');
+                                loadingText.classList.remove('text-warning');
+                            } else if (percent < 70) {
+                                loadingText.classList.add('text-warning');
+                                loadingText.classList.remove('text-danger');
+                            } else {
+                                loadingText.classList.remove('text-warning', 'text-danger');
+                            }
+                        }
+                        
+                        // 缓冲停滞检测
+                        if (bufferStalledTimer) {
+                            clearTimeout(bufferStalledTimer);
+                        }
+                        
+                        bufferStalledTimer = setTimeout(() => {
+                            if (lastBufferPercent === percent && percent < 100) {
+                                loadingText.textContent = `缓冲停滞 (${Math.round(percent)}%)，请检查网络`;
+                                loadingText.classList.add('text-danger');
+                            }
+                        }, 5000);
+                        
+                        // 智能播放决策
+                        if (percent > 50 && this.paused && !this.ended) {
+                            const playPromise = this.play();
+                            playPromise.catch(e => {
+                                if (e.name !== 'AbortError') {
+                                    errorMessage.textContent = `播放失败: ${e.message}`;
+                                    videoError.classList.remove('d-none');
+                                }
+                            });
+                        }
+                    }
+                }
+            });
+            
+            // 缓冲状态处理
+            videoPlayer.addEventListener('canplay', function() {
+                const loadingText = document.querySelector('#videoLoading span');
+                if (loadingText) {
+                    loadingText.textContent = '视频已缓冲完成，可以流畅播放';
+                    setTimeout(() => {
+                        document.getElementById('videoLoading').classList.add('d-none');
+                    }, 2000);
+                }
+            });
+
+            videoPlayer.addEventListener('waiting', function() {
+                const loadingText = document.querySelector('#videoLoading span');
+                if (loadingText) {
+                    loadingText.textContent = '视频缓冲中，请稍候...';
+                }
+            });
+
+            // 注册按钮跳转
+            document.getElementById('registerButton').addEventListener('click', () => {
+                window.location.href = 'register.html';
+            });
+        </script>
+    </body>
+</html>
