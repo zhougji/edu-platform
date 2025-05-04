@@ -1,0 +1,16 @@
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\security\WebSecurityConfig.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\model\dto\RegisterRequest.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\security\JwtAuthenticationFilter.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\controller\AuthController.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\service\AuthService.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\repository\UserRepository.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\repository\UserTokenRepository.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\security\JwtTokenProvider.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\EduPlatformApplication.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\model\entity\UserToken.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\model\dto\LoginRequest.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\service\UserDetailsServiceImpl.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\model\dto\AuthResponse.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\security\UserDetailsServiceImpl.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\model\entity\User.java
+D:\Code\coding\edu-platform\server\src\main\java\eduplatform\controller\HealthController.java

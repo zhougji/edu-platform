@@ -1,0 +1,20 @@
+# 文件上传配置
+app:
+  upload:
+    dir: ./uploads
+    video-dir: videos
+    image-dir: images
+
+# Spring Servlet Multipart配置
+spring:
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 500MB
+      max-request-size: 500MB
+  
+  # 添加静态资源映射，让上传的文件可通过HTTP访问
+  mvc:
+    static-path-pattern: /uploads/**
+  resources:
+    static-locations: file:./uploads/ 

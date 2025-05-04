@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh-hans" itemscope itemtype="http://schema.org/Organization">
+
+<head prefix="og: http://ogp.me/ns# khanacademy: http://ogp.me/ns/apps/khanacademy#">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>登录 - 启明隅</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link rel="shortcut icon" href="https://cdn.kastatic.org/images/favicon.ico?logo">
+</head>
+
+<body class="page-transition auth-background">
+    <!-- 页头部分 -->
+    <header>
+        <!-- 导航栏 -->
+        <nav class="navbar navbar-expand-lg navbar-light bg-white">
+            <div class="container-fluid">
+                <!-- 移动端导航折叠按钮 -->
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
+                    aria-expanded="false" aria-label="切换导航">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <!-- 折叠导航内容 -->
+                <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                        <!-- 导航品牌：启明隅 -->
+                        <a class="navbar-brand" href="index.html">
+                            <img src="image/logo.png" alt="启明隅" height="60">
+                        </a>
+                    </ul>
+                    <!-- 登录和注册按钮
+                    <div class="d-flex align-items-center gap-3">
+                        <a class="nav-link text-primary fp" href="login.html">登录</a>
+                        <button id="registerButton" class="btn btn-primary fp fw-bold">注册</button>
+                    </div> -->
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- 主要内容区域 -->
+    <div class="container my-5">
+        <div class="row justify-content-center">
+            <div class="col-md-6 ka-card p-5">
+                <h2 class="text-center mb-5 fh" style="font-size: 32px;">老师您好</h2>
+                <form id="loginForm" class="needs-validation" novalidate>
+                    <!-- 用户名输入框 -->
+                    <div class="mb-4">
+                        <label for="username" class="form-label fp">用户名</label>
+                        <input type="text" class="form-control" id="username" required>
+                    </div>
+                    <!-- 密码输入框 -->
+                    <div class="mb-4">
+                        <label for="password" class="form-label fp">密码</label>
+                        <input type="password" class="form-control" id="password" required>
+                    </div>
+                    <!-- 记住我和忘记密码 -->
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="rememberMe">
+                            <label class="form-check-label fp" for="rememberMe">记住我</label>
+                        </div>
+                        <a href="#" class="text-primary text-decoration-none fp">忘记密码？</a>
+                    </div>
+                    <!-- 登录按钮 -->
+                    <div class="d-grid mb-4">
+                        <button type="submit" id="loginBtn" class="btn btn-primary py-3 fp fw-bold">登录</button>
+                    </div>
+                    <!-- 注册链接 -->
+                    <div class="text-center fp">
+                        还没有账号？<a href="register.html" class="text-primary text-decoration-none ms-1">立即注册</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    </div>
+    </div>
+
+    <!-- 引入 Bootstrap 的 JS 文件 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+        crossorigin="anonymous"></script>
+
+    <!-- 登录功能脚本 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const loginForm = document.getElementById('loginForm');
+            // 使用实际后端完整地址，包含端口号 8085
+            const API_BASE_URL = 'http://localhost:8085'; // 后端在端口8085运行，根路径
+            // 登录成功后跳转到教师端和学生端主界面
+            // 请根据实际部署环境修改下面的地址
+            const TEACHER_APP_URL = 'http://localhost:8080'; // 教师端开发地址(8080端口)
+            const STUDENT_APP_URL = 'http://localhost:8081'; // 学生端开发地址(8081端口)
+
+            // 获取注册按钮并添加跳转功能
+            const registerButton = document.getElementById('registerButton');
+            if (registerButton) { // Check if button exists
+                registerButton.addEventListener('click', () => {
+                    window.location.href = 'register.html'; // Relative path
+                });
+            }
+
+            // 检查记住的用户名
+            const rememberedUser = localStorage.getItem('rememberedUser');
+            if (rememberedUser) {
+                document.getElementById('username').value = rememberedUser;
+                document.getElementById('rememberMe').checked = true;
+            }
+
+            // 密码输入实时反馈
+            document.getElementById('password').addEventListener('input', function () {
+                const password = this.value;
+                const strengthText = document.getElementById('password-strength');
+
+                if (strengthText) {
+                    if (password.length === 0) {
+                        strengthText.textContent = '';
+                    } else if (password.length < 6) {
+                        strengthText.textContent = '密码太短';
+                        strengthText.className = 'text-danger';
+                    } else {
+                        strengthText.textContent = '密码强度足够';
+                        strengthText.className = 'text-success';
+                    }
+                }
+            });
+
+            loginForm.addEventListener('submit', async function (e) {
+                e.preventDefault();
+
+                const submitBtn = document.getElementById('loginBtn');
+                const originalText = submitBtn.textContent; // Use textContent
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 登录中...';
+                submitBtn.disabled = true;
+
+                // Clear previous errors
+                const oldError = loginForm.querySelector('.alert-danger');
+                if (oldError) oldError.remove();
+
+                const username = document.getElementById('username').value.trim();
+                const password = document.getElementById('password').value.trim();
+                const rememberMe = document.getElementById('rememberMe').checked;
+
+                // Basic validation
+                if (!username || !password) {
+                    displayError('请输入用户名和密码');
+                    resetButton();
+                    return;
+                }
+
+                try {
+                    console.log(`准备发送登录请求到 ${API_BASE_URL}/auth/login`);
+                    // Send login request to backend API
+                    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        // Backend expects: username, password
+                        body: JSON.stringify({
+                            username: username,
+                            password: password
+                        })
+                    });
+
+                    const data = await response.json();
+                    console.log('登录响应:', data);
+
+                    if (!response.ok || !data.token) {
+                        displayError(data.message || '用户名或密码错误');
+                        document.getElementById('password').value = '';
+                        resetButton();
+                        return;
+                    }
+
+                    // Login successful
+                    console.log('登录成功, 令牌:', data.token);
+                    console.log('用户信息:', data);
+
+                    // Store standardized token and user info
+                    localStorage.setItem('auth_token', data.token);
+                    localStorage.setItem('token', data.token);
+
+                    // 创建标准化的用户信息对象
+                    const userObj = {
+                        id: data.id,
+                        username: data.username,
+                        role: data.role,
+                        email: data.email
+                    };
+                    console.log('将用户信息存入localStorage:', userObj);
+                    localStorage.setItem('currentUser', JSON.stringify(userObj));
+                    localStorage.setItem('user', JSON.stringify(userObj));
+
+                    // Remember username if checked
+                    if (rememberMe) {
+                        localStorage.setItem('rememberedUser', username);
+                    } else {
+                        localStorage.removeItem('rememberedUser');
+                    }
+
+                    // 打印角色和大写角色，便于调试
+                    console.log('用户角色:', data.role);
+                    console.log('大写角色:', data.role ? data.role.toUpperCase() : null);
+
+                    // Redirect based on user role
+                    if (data.role && data.role.toUpperCase() === 'TEACHER') {
+                        console.log(`跳转到教师应用: ${TEACHER_APP_URL}`);
+                        window.location.href = TEACHER_APP_URL;
+                    } else if (data.role && data.role.toUpperCase() === 'STUDENT') {
+                        console.log(`跳转到学生应用: ${STUDENT_APP_URL}`);
+                        window.location.href = STUDENT_APP_URL;
+                    } else {
+                        console.error('无法识别的用户角色，无法跳转:', data.role);
+                        displayError('无法识别的用户角色，请联系管理员');
+                        resetButton();
+                        // Optionally clear stored items if redirect fails
+                        localStorage.removeItem('auth_token');
+                        localStorage.removeItem('currentUser');
+                    }
+
+                } catch (error) {
+                    console.error('登录请求出错:', error);
+                    displayError('登录过程中发生网络或服务错误，请稍后再试');
+                    resetButton();
+                }
+
+                function displayError(message) {
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'alert alert-danger mt-3';
+                    errorDiv.textContent = message;
+                    // Insert error before the submit button or at the end
+                    loginForm.insertBefore(errorDiv, submitBtn.parentElement);
+                }
+
+                function resetButton() {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>启明隅 - 服务器状态</title>
+    <!-- 引入Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="js/config.js"></script>
+    <style>
+        .status-card {
+            transition: all 0.3s ease;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .status-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .card-header {
+            border-radius: 10px 10px 0 0 !important;
+            font-weight: bold;
+        }
+
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .status-badge {
+            font-size: 1.2rem;
+            padding: 8px 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container py-5">
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h1>启明隅教育平台 - 服务器状态</h1>
+                <p class="text-muted">实时监控系统运行状况</p>
+            </div>
+            <div class="col-md-4 text-end">
+                <div id="server-status-badge" class="d-inline-block">
+                    <span class="badge bg-secondary status-badge">检查中...</span>
+                </div>
+                <div class="mt-2">
+                    <span id="last-update" class="text-muted small">上次更新: --</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- 系统信息卡片 -->
+            <div class="col-md-6">
+                <div class="card status-card">
+                    <div class="card-header bg-primary text-white">
+                        系统信息
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>应用名称:</span>
+                                <span id="app-name" class="fw-bold">--</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>环境配置:</span>
+                                <span id="profiles" class="fw-bold">--</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>服务器时间:</span>
+                                <span id="server-time" class="fw-bold">--</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>可用处理器:</span>
+                                <span id="available-processors" class="fw-bold">--</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>活动线程:</span>
+                                <span id="active-threads" class="fw-bold">--</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- JVM信息卡片 -->
+            <div class="col-md-6">
+                <div class="card status-card">
+                    <div class="card-header bg-success text-white">
+                        JVM信息
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>启动时间:</span>
+                                <span id="jvm-start-time" class="fw-bold">--</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>运行时长:</span>
+                                <span id="jvm-uptime" class="fw-bold">--</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>堆内存:</span>
+                                <span id="heap-memory" class="fw-bold">--</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between">
+                                <span>非堆内存:</span>
+                                <span id="non-heap-memory" class="fw-bold">--</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-3">
+            <div class="col-12">
+                <div class="alert alert-info">
+                    <p class="mb-0">
+                        <strong>提示:</strong>
+                        该页面每30秒自动刷新一次服务器状态信息。您也可以点击右下角的刷新按钮立即更新。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-12 text-center">
+                <a href="index.html" class="btn btn-outline-primary">返回首页</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- 刷新按钮 -->
+    <button id="refresh-btn" class="btn btn-primary refresh-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" class="bi bi-arrow-clockwise"
+            viewBox="0 0 16 16">
+            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z" />
+            <path
+                d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z" />
+        </svg>
+    </button>
+
+    <!-- 引入Bootstrap和JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 获取服务器状态
+        async function fetchServerStatus() {
+            try {
+                const response = await fetch(`${window.API_CONFIG.baseURL}/api/status`);
+                if (!response.ok) {
+                    throw new Error('无法获取服务器状态');
+                }
+
+                const data = await response.json();
+                updateStatusUI(data);
+
+                // 更新服务器状态指示器
+                document.getElementById('server-status-badge').innerHTML =
+                    '<span class="badge bg-success status-badge">服务器运行中</span>';
+
+                // 更新最后更新时间
+                document.getElementById('last-update').textContent =
+                    `上次更新: ${new Date().toLocaleTimeString()}`;
+
+            } catch (error) {
+                console.error('获取服务器状态失败:', error);
+                document.getElementById('server-status-badge').innerHTML =
+                    '<span class="badge bg-danger status-badge">连接失败</span>';
+            }
+        }
+
+        // 更新UI显示数据
+        function updateStatusUI(data) {
+            // 系统信息
+            document.getElementById('app-name').textContent = data.appName;
+            document.getElementById('profiles').textContent = data.profiles;
+            document.getElementById('server-time').textContent = data.serverTime;
+            document.getElementById('available-processors').textContent = data.availableProcessors;
+            document.getElementById('active-threads').textContent = data.activeThreads;
+
+            // JVM信息
+            document.getElementById('jvm-start-time').textContent = data.jvmStartTime;
+            document.getElementById('jvm-uptime').textContent = data.jvmUptime;
+            document.getElementById('heap-memory').textContent = data.memory.heapMemoryUsage;
+            document.getElementById('non-heap-memory').textContent = data.memory.nonHeapMemoryUsage;
+        }
+
+        // 页面加载时获取服务器状态
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchServerStatus();
+
+            // 设置定时刷新 (30秒)
+            setInterval(fetchServerStatus, 30000);
+
+            // 刷新按钮点击事件
+            document.getElementById('refresh-btn').addEventListener('click', () => {
+                document.getElementById('server-status-badge').innerHTML =
+                    '<span class="badge bg-secondary status-badge">正在刷新...</span>';
+                fetchServerStatus();
+            });
+        });
+    </script>
+</body>
+
+</html>

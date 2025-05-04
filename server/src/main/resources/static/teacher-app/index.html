@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>启明语教育平台 - 教师控制台</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.2.3/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .container {
+            padding-top: 30px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+        }
+
+        .welcome-message {
+            margin-right: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">启明语教育平台</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="#">首页</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">我的课程</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">学生管理</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">教学资源</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">咨询服务</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdown" role="button"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            <span id="current-username">用户</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                            <li><a class="dropdown-item" href="#">个人信息</a></li>
+                            <li><a class="dropdown-item" href="#">教学记录</a></li>
+                            <li>
+                                <hr class="dropdown-divider">
+                            </li>
+                            <li><a class="dropdown-item" href="#" id="logout-btn">退出登录</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h2>教师控制台</h2>
+            <div class="user-info">
+                <div class="welcome-message">欢迎，<span id="welcome-username">老师</span></div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header">我的课程</div>
+                    <div class="card-body">
+                        <p class="card-text">您尚未创建任何课程。</p>
+                        <button class="btn btn-success">创建新课程</button>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">咨询预约</div>
+                    <div class="card-body">
+                        <p class="card-text">暂无学生预约咨询。</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">学生情况</div>
+                    <div class="card-body">
+                        <p class="card-text">暂无学生选修您的课程。</p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">通知</div>
+                    <div class="card-body">
+                        <p class="card-text">欢迎来到启明语教育平台！</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script src="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.2.3/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 检查用户是否已登录
+        $(document).ready(function () {
+            const token = localStorage.getItem('token');
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+
+            if (!token || !user || user.role !== 'TEACHER') {
+                // 未登录或非教师用户，重定向到登录页
+                window.location.href = '/';
+                return;
+            }
+
+            // 设置用户名
+            $('#current-username').text(user.username);
+            $('#welcome-username').text(user.username);
+
+            // 处理退出登录
+            $('#logout-btn').click(function () {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                window.location.href = '/';
+            });
+        });
+    </script>
+</body>
+
+</html>

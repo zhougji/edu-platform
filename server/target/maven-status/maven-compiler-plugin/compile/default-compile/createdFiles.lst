@@ -1,0 +1,17 @@
+eduplatform\service\AuthService.class
+eduplatform\service\UserDetailsServiceImpl.class
+eduplatform\model\entity\User.class
+eduplatform\repository\UserTokenRepository.class
+eduplatform\controller\AuthController.class
+eduplatform\model\entity\User$UserRole.class
+eduplatform\controller\HealthController.class
+eduplatform\EduPlatformApplication.class
+eduplatform\model\dto\AuthResponse.class
+eduplatform\model\dto\LoginRequest.class
+eduplatform\repository\UserRepository.class
+eduplatform\security\WebSecurityConfig.class
+eduplatform\service\AuthService$1.class
+eduplatform\security\JwtTokenProvider.class
+eduplatform\model\dto\RegisterRequest.class
+eduplatform\security\JwtAuthenticationFilter.class
+eduplatform\model\entity\UserToken.class

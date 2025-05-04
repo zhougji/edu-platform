@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>启明语教育平台 - 登录</title>
+    <link href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/5.2.3/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .form-signin {
+            width: 100%;
+            max-width: 380px;
+            padding: 15px;
+            margin: auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-signin .form-floating:focus-within {
+            z-index: 2;
+        }
+
+        .form-signin input[type="email"] {
+            margin-bottom: -1px;
+            border-bottom-right-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        .form-signin input[type="password"] {
+            margin-bottom: 10px;
+            border-top-left-radius: 0;
+            border-top-right-radius: 0;
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .logo-container h1 {
+            color: #3f51b5;
+            font-weight: bold;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 2px solid #dee2e6;
+        }
+
+        .tab.active {
+            border-bottom: 2px solid #3f51b5;
+            color: #3f51b5;
+            font-weight: bold;
+        }
+
+        .form-content {
+            display: none;
+        }
+
+        .form-content.active {
+            display: block;
+        }
+
+        .form-check-label {
+            margin-right: 15px;
+        }
+
+        .alert {
+            display: none;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <main class="form-signin">
+        <div class="logo-container">
+            <h1>启明语教育平台</h1>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" id="login-tab">登录</div>
+            <div class="tab" id="register-tab">注册</div>
+        </div>
+
+        <div class="form-content active" id="login-form">
+            <form id="loginForm">
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control" id="loginUsername" placeholder="用户名" required>
+                    <label for="loginUsername">用户名</label>
+                </div>
+                <div class="form-floating mb-3">
+                    <input type="password" class="form-control" id="loginPassword" placeholder="密码" required>
+                    <label for="loginPassword">密码</label>
+                </div>
+
+                <button class="w-100 btn btn-lg btn-primary" type="submit">登录</button>
+
+                <div class="alert alert-danger" id="login-alert" role="alert"></div>
+            </form>
+        </div>
+
+        <div class="form-content" id="register-form">
+            <form id="registerForm">
+                <div class="form-floating mb-3">
+                    <input type="text" class="form-control" id="registerUsername" placeholder="用户名" required>
+                    <label for="registerUsername">用户名</label>
+                </div>
+                <div class="form-floating mb-3">
+                    <input type="email" class="form-control" id="registerEmail" placeholder="邮箱" required>
+                    <label for="registerEmail">邮箱</label>
+                </div>
+                <div class="form-floating mb-3">
+                    <input type="password" class="form-control" id="registerPassword" placeholder="密码" required>
+                    <label for="registerPassword">密码</label>
+                </div>
+
+                <div class="form-check form-check-inline mb-3">
+                    <input class="form-check-input" type="radio" name="userRole" id="student-role" value="STUDENT"
+                        checked>
+                    <label class="form-check-label" for="student-role">学生</label>
+
+                    <input class="form-check-input" type="radio" name="userRole" id="teacher-role" value="TEACHER">
+                    <label class="form-check-label" for="teacher-role">教师</label>
+                </div>
+
+                <button class="w-100 btn btn-lg btn-primary" type="submit">注册</button>
+
+                <div class="alert alert-danger" id="register-alert" role="alert"></div>
+            </form>
+        </div>
+    </main>
+
+    <script src="https://cdn.bootcdn.net/ajax/libs/jquery/3.6.4/jquery.min.js"></script>
+    <script>
+        // 切换登录和注册表单
+        $('#login-tab').click(function () {
+            $('.tab').removeClass('active');
+            $(this).addClass('active');
+            $('.form-content').removeClass('active');
+            $('#login-form').addClass('active');
+        });
+
+        $('#register-tab').click(function () {
+            $('.tab').removeClass('active');
+            $(this).addClass('active');
+            $('.form-content').removeClass('active');
+            $('#register-form').addClass('active');
+        });
+
+        // 处理登录表单提交
+        $('#loginForm').submit(function (e) {
+            e.preventDefault();
+
+            const username = $('#loginUsername').val();
+            const password = $('#loginPassword').val();
+
+            $.ajax({
+                url: '/api/auth/login',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    username: username,
+                    password: password
+                }),
+                success: function (response) {
+                    // 保存令牌到本地存储
+                    localStorage.setItem('token', response.token);
+                    localStorage.setItem('user', JSON.stringify({
+                        id: response.id,
+                        username: response.username,
+                        email: response.email,
+                        role: response.role
+                    }));
+
+                    // 根据角色重定向
+                    window.location.href = response.redirectUrl;
+                },
+                error: function (xhr) {
+                    let errorMsg = '登录失败，请检查用户名和密码';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMsg = xhr.responseJSON.message;
+                    }
+                    $('#login-alert').text(errorMsg).show();
+                }
+            });
+        });
+
+        // 处理注册表单提交
+        $('#registerForm').submit(function (e) {
+            e.preventDefault();
+
+            const username = $('#registerUsername').val();
+            const email = $('#registerEmail').val();
+            const password = $('#registerPassword').val();
+            const role = $('input[name="userRole"]:checked').val();
+
+            $.ajax({
+                url: '/api/auth/register',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    username: username,
+                    email: email,
+                    password: password,
+                    role: role
+                }),
+                success: function (response) {
+                    // 保存令牌到本地存储
+                    localStorage.setItem('token', response.token);
+                    localStorage.setItem('user', JSON.stringify({
+                        id: response.id,
+                        username: response.username,
+                        email: response.email,
+                        role: response.role
+                    }));
+
+                    // 根据角色重定向
+                    window.location.href = response.redirectUrl;
+                },
+                error: function (xhr) {
+                    let errorMsg = '注册失败，请检查填写的信息';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMsg = xhr.responseJSON.message;
+                    }
+                    $('#register-alert').text(errorMsg).show();
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
